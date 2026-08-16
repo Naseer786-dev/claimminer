@@ -1,357 +1,317 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import {
-  Search,
-  Filter,
-  MapPin,
-  Building2,
-  Calendar,
-  ArrowRight,
-  Star,
-  Lock,
-  Crown,
-} from "lucide-react";
-import { useUser } from "@clerk/nextjs";
+import { useState, useEffect } from "react";
+import { useAuth } from "@clerk/nextjs";
+import { Search, Filter, Download, Bell, Zap, Lock, RefreshCw, ExternalLink } from "lucide-react";
+import Link from "next/link";
 
 interface RFP {
-  id: number;
+  id: string;
   title: string;
   agency: string;
-  state: string;
-  budget: string;
-  match_score: number;
-  agency_level: string;
-  due_date: string;
   description: string;
-  naics_code: string;
-  status: string;
-  posted_date?: string;
-  solicitation_number?: string;
-  contract_type?: string;
-  set_aside?: string;
+  budget: string;
+  postedDate: string;
+  dueDate: string;
+  naicsCode: string;
+  contractType: string;
+  solicitationNumber: string;
+  url?: string;
+  source?: string;
+  matchScore: number;
+  status?: string;
 }
 
 export default function RFPsPage() {
-  const router = useRouter();
-  const { user, isLoaded } = useUser();
+  const { isSignedIn } = useAuth();
   const [rfps, setRfps] = useState<RFP[]>([]);
   const [filteredRfps, setFilteredRfps] = useState<RFP[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedState, setSelectedState] = useState("");
-  const [selectedLevel, setSelectedLevel] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [plan, setPlan] = useState("free");
-  const [visibleCount, setVisibleCount] = useState(5);
+  const [selectedAgency, setSelectedAgency] = useState("All");
+  const [selectedType, setSelectedType] = useState("All");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLiveLoading, setIsLiveLoading] = useState(false);
+  const [showLiveBanner, setShowLiveBanner] = useState(false);
+  const [subscription, setSubscription] = useState<any>(null);
 
   useEffect(() => {
+    async function checkSubscription() {
+      if (!isSignedIn) return;
+      try {
+        const res = await fetch("/api/subscription/status");
+        const data = await res.json();
+        setSubscription(data);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    checkSubscription();
+  }, [isSignedIn]);
+
+  const isPaid = subscription?.plan && subscription.plan !== "free";
+
+  useEffect(() => {
+    async function fetchRFPs() {
+      setIsLoading(true);
+      try {
+        const res = await fetch("/api/rfps/sam-live?limit=20", { next: { revalidate: 0 } });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.opportunities && data.opportunities.length > 0) {
+            setRfps(data.opportunities);
+            setShowLiveBanner(true);
+          } else {
+            throw new Error("No live data");
+          }
+        } else {
+          throw new Error("API error");
+        }
+      } catch (e) {
+        setRfps(staticRfps);
+      }
+      setIsLoading(false);
+    }
     fetchRFPs();
-    if (isLoaded && user) {
-      fetchUserPlan();
-    }
-  }, [isLoaded, user]);
+  }, []);
 
   useEffect(() => {
-    filterRfps();
-  }, [searchQuery, selectedState, selectedLevel, rfps]);
-
-  async function fetchRFPs() {
-    try {
-      const [samRes, localRes] = await Promise.allSettled([
-        fetch("/api/rfps/sam"),
-        fetch("/api/rfps"),
-      ]);
-
-      let allRfps: RFP[] = [];
-
-      if (samRes.status === "fulfilled" && samRes.value.ok) {
-        const samData = await samRes.value.json();
-        if (samData.rfps) {
-          allRfps = [...samData.rfps];
-        }
-      }
-
-      if (localRes.status === "fulfilled" && localRes.value.ok) {
-        const localData = await localRes.value.json();
-        if (Array.isArray(localData)) {
-          allRfps = [...allRfps, ...localData];
-        }
-      }
-
-      setRfps(allRfps);
-      setFilteredRfps(allRfps);
-    } catch (error) {
-      console.error("Fetch error:", error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function fetchUserPlan() {
-    try {
-      const res = await fetch(`/api/subscription/status?userId=${user?.id}`);
-      const data = await res.json();
-      setPlan(data.plan || "free");
-
-      const limits: Record<string, number> = {
-        free: 5,
-        starter: 50,
-        pro: 999999,
-        enterprise: 999999,
-      };
-      setVisibleCount(limits[data.plan || "free"] || 5);
-    } catch (error) {
-      console.error("Plan fetch error:", error);
-    }
-  }
-
-  function filterRfps() {
-    let filtered = [...rfps];
-
+    let filtered = rfps;
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (rfp) =>
-          rfp.title.toLowerCase().includes(query) ||
-          rfp.agency.toLowerCase().includes(query) ||
-          rfp.description.toLowerCase().includes(query)
+          rfp.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          rfp.agency.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          rfp.description.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-
-    if (selectedState) {
-      filtered = filtered.filter((rfp) => rfp.state === selectedState);
+    if (selectedAgency !== "All") {
+      filtered = filtered.filter((rfp) => rfp.agency === selectedAgency);
     }
-
-    if (selectedLevel) {
-      filtered = filtered.filter((rfp) => rfp.agency_level === selectedLevel);
+    if (selectedType !== "All") {
+      filtered = filtered.filter((rfp) => rfp.contractType === selectedType);
     }
-
     setFilteredRfps(filtered);
+  }, [rfps, searchQuery, selectedAgency, selectedType]);
+
+  const displayRfps = isPaid ? filteredRfps : filteredRfps.slice(0, 5);
+  const hiddenCount = filteredRfps.length - displayRfps.length;
+
+  const agencies = Array.from(new Set(rfps.map((r) => r.agency)));
+  const types = Array.from(new Set(rfps.map((r) => r.contractType)));
+
+  const loadLiveData = async () => {
+    setIsLiveLoading(true);
+    try {
+      const res = await fetch("/api/rfps/sam-live?limit=20&keywords=IT", { cache: "no-store" });
+      const data = await res.json();
+      if (data.opportunities) {
+        setRfps(data.opportunities);
+        setShowLiveBanner(true);
+      }
+    } catch (e) {
+      alert("Failed to load live data. Using cached RFPs.");
+    }
+    setIsLiveLoading(false);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
+          <p className="text-slate-400">Loading government contracts...</p>
+        </div>
+      </div>
+    );
   }
 
-  // FIX: Use Array.from instead of spread operator for Set
-  const states = Array.from(new Set(rfps.map((r) => r.state))).sort();
-  const levels = Array.from(new Set(rfps.map((r) => r.agency_level))).sort();
-
-  const displayedRfps = filteredRfps.slice(0, visibleCount);
-  const hasMore = filteredRfps.length > visibleCount;
-  const isLimited = plan === "free" && filteredRfps.length > 5;
-
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-[#0a0e1a] text-white">
+      <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Government RFPs</h1>
-          <p className="text-slate-400">
-            {rfps.length}+ active contract opportunities from federal, state, and local agencies
-          </p>
+          <h1 className="text-3xl font-bold mb-2">Government RFPs</h1>
+          <p className="text-slate-400">{rfps.length} active contracts from federal agencies</p>
         </div>
 
-        {plan === "free" && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center justify-between"
-          >
+        {showLiveBanner && (
+          <div className="mb-6 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Lock className="w-5 h-5 text-amber-400" />
-              <div>
-                <p className="text-sm text-amber-400 font-medium">
-                  Showing {Math.min(5, filteredRfps.length)} of {filteredRfps.length} RFPs
-                </p>
-                <p className="text-xs text-slate-400">
-                  Upgrade to Starter to see up to 50 RFPs, or Professional for unlimited access.
-                </p>
-              </div>
+              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+              <span className="text-emerald-400 text-sm font-medium">
+                Live data from SAM.gov &bull; Updated {new Date().toLocaleDateString()}
+              </span>
             </div>
             <button
-              onClick={() => router.push("/pricing")}
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+              onClick={loadLiveData}
+              disabled={isLiveLoading}
+              className="flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300 transition-colors disabled:opacity-50"
             >
-              <Crown className="w-4 h-4" />
-              Upgrade
+              <RefreshCw className={`w-4 h-4 ${isLiveLoading ? "animate-spin" : ""}`} />
+              {isLiveLoading ? "Refreshing..." : "Refresh"}
             </button>
-          </motion.div>
+          </div>
         )}
 
-        <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-              <input
-                type="text"
-                placeholder="Search RFPs by title, agency, or keywords..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
-              />
-            </div>
-            <div className="flex gap-3">
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                <select
-                  value={selectedState}
-                  onChange={(e) => setSelectedState(e.target.value)}
-                  className="pl-9 pr-8 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white appearance-none focus:outline-none focus:border-emerald-500 cursor-pointer"
-                >
-                  <option value="">All States</option>
-                  {states.map((state) => (
-                    <option key={state} value={state}>
-                      {state}
-                    </option>
-                  ))}
-                </select>
+        {!isPaid && hiddenCount > 0 && (
+          <div className="mb-6 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-xl p-5 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-amber-500/20 rounded-lg flex items-center justify-center">
+                <Lock className="w-5 h-5 text-amber-400" />
               </div>
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                <select
-                  value={selectedLevel}
-                  onChange={(e) => setSelectedLevel(e.target.value)}
-                  className="pl-9 pr-8 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white appearance-none focus:outline-none focus:border-emerald-500 cursor-pointer"
-                >
-                  <option value="">All Levels</option>
-                  {levels.map((level) => (
-                    <option key={level} value={level}>
-                      {level}
-                    </option>
-                  ))}
-                </select>
+              <div>
+                <h3 className="font-semibold text-amber-200">{hiddenCount} more RFPs hidden</h3>
+                <p className="text-sm text-amber-200/70">Upgrade to see all {filteredRfps.length} contracts and unlock advanced filters</p>
               </div>
             </div>
+            <Link href="/pricing" className="bg-amber-500 hover:bg-amber-600 text-black font-semibold px-5 py-2.5 rounded-lg transition-colors text-sm">
+              Upgrade Now
+            </Link>
+          </div>
+        )}
+
+        <div className="mb-6 space-y-4">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Search by title, agency, or keywords..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-[#111827] border border-slate-700 rounded-xl pl-12 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <div className="flex items-center gap-2 bg-[#111827] border border-slate-700 rounded-lg px-4 py-2">
+              <Filter className="w-4 h-4 text-slate-500" />
+              <select value={selectedAgency} onChange={(e) => setSelectedAgency(e.target.value)} className="bg-transparent text-sm text-slate-300 focus:outline-none">
+                <option value="All">All Agencies</option>
+                {agencies.map((a) => (<option key={a} value={a}>{a}</option>))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2 bg-[#111827] border border-slate-700 rounded-lg px-4 py-2">
+              <Zap className="w-4 h-4 text-slate-500" />
+              <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)} className="bg-transparent text-sm text-slate-300 focus:outline-none">
+                <option value="All">All Types</option>
+                {types.map((t) => (<option key={t} value={t}>{t}</option>))}
+              </select>
+            </div>
+
+            {isPaid && (
+              <button className="flex items-center gap-2 bg-[#111827] border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-300 hover:border-emerald-500 transition-colors">
+                <Download className="w-4 h-4" />
+                Export CSV
+              </button>
+            )}
+
+            <button
+              onClick={loadLiveData}
+              disabled={isLiveLoading}
+              className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-4 py-2 text-sm text-emerald-400 hover:bg-emerald-500/20 transition-colors disabled:opacity-50 ml-auto"
+            >
+              <RefreshCw className={`w-4 h-4 ${isLiveLoading ? "animate-spin" : ""}`} />
+              {isLiveLoading ? "Loading SAM.gov..." : "Load Live Data"}
+            </button>
           </div>
         </div>
 
         <div className="space-y-4">
-          {loading ? (
-            Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 animate-pulse">
-                <div className="h-4 bg-slate-700 rounded w-1/3 mb-2" />
-                <div className="h-3 bg-slate-700 rounded w-1/4" />
+          {displayRfps.map((rfp) => (
+            <div key={rfp.id} className="bg-[#111827] border border-slate-800 rounded-xl p-6 hover:border-slate-700 transition-colors">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-lg font-semibold text-white">{rfp.title}</h3>
+                    {rfp.source === "SAM.gov" && (
+                      <span className="bg-emerald-500/10 text-emerald-400 text-xs px-2 py-1 rounded-full font-medium">SAM.gov</span>
+                    )}
+                  </div>
+                  <p className="text-slate-400 text-sm mb-3 line-clamp-2">{rfp.description}</p>
+                </div>
+                <div className="flex items-center gap-2 ml-4">
+                  <div className="bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-lg text-sm font-semibold">{rfp.matchScore}% Match</div>
+                </div>
               </div>
-            ))
-          ) : displayedRfps.length === 0 ? (
-            <div className="text-center py-12">
-              <Search className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-              <p className="text-slate-400">No RFPs found matching your criteria</p>
+
+              <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500 mb-4">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                  {rfp.agency}
+                </span>
+                <span>Budget: {rfp.budget}</span>
+                <span>Posted: {new Date(rfp.postedDate).toLocaleDateString()}</span>
+                <span>Due: {rfp.dueDate}</span>
+                <span className="bg-slate-800 px-2 py-0.5 rounded text-xs">NAICS: {rfp.naicsCode}</span>
+                <span className="bg-slate-800 px-2 py-0.5 rounded text-xs">{rfp.contractType}</span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {rfp.url && (
+                  <a href={rfp.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-emerald-400 hover:text-emerald-300 text-sm font-medium transition-colors">
+                    <ExternalLink className="w-4 h-4" />
+                    View on SAM.gov
+                  </a>
+                )}
+                <button className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition-colors">
+                  <Bell className="w-4 h-4" />
+                  Set Alert
+                </button>
+              </div>
             </div>
-          ) : (
-            displayedRfps.map((rfp, index) => (
-              <motion.div
-                key={rfp.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                onClick={() => router.push(`/rfps/${rfp.id}`)}
-                className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 hover:border-emerald-500/30 hover:bg-slate-800/50 transition-all cursor-pointer group"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-lg font-semibold text-white truncate group-hover:text-emerald-400 transition-colors">
-                        {rfp.title}
-                      </h3>
-                      {rfp.solicitation_number && (
-                        <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded shrink-0">
-                          {rfp.solicitation_number}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-slate-400">
-                      <span className="flex items-center gap-1">
-                        <Building2 className="w-4 h-4" />
-                        {rfp.agency}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-4 h-4" />
-                        {rfp.state}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        Due: {rfp.due_date}
-                      </span>
-                      {rfp.posted_date && (
-                        <span className="text-xs text-slate-500">
-                          Posted: {rfp.posted_date}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 ml-4 shrink-0">
-                    <span className="text-lg font-bold text-emerald-400">
-                      {rfp.budget}
-                    </span>
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        rfp.match_score >= 90
-                          ? "bg-emerald-500/20 text-emerald-400"
-                          : rfp.match_score >= 75
-                          ? "bg-blue-500/20 text-blue-400"
-                          : rfp.match_score >= 60
-                          ? "bg-amber-500/20 text-amber-400"
-                          : "bg-slate-500/20 text-slate-400"
-                      }`}
-                    >
-                      {rfp.match_score}% match
-                    </span>
-                  </div>
-                </div>
-                <p className="text-sm text-slate-400 mb-3 line-clamp-2">{rfp.description}</p>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs px-2 py-1 bg-slate-800 text-slate-400 rounded">
-                    {rfp.agency_level}
-                  </span>
-                  <span className="text-xs px-2 py-1 bg-slate-800 text-slate-400 rounded">
-                    NAICS: {rfp.naics_code}
-                  </span>
-                  {rfp.contract_type && (
-                    <span className="text-xs px-2 py-1 bg-slate-800 text-slate-400 rounded">
-                      {rfp.contract_type}
-                    </span>
-                  )}
-                  {rfp.set_aside && rfp.set_aside !== "None" && (
-                    <span className="text-xs px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded">
-                      {rfp.set_aside}
-                    </span>
-                  )}
-                  <ArrowRight className="w-4 h-4 text-slate-600 ml-auto group-hover:text-emerald-400 group-hover:translate-x-1 transition-all" />
-                </div>
-              </motion.div>
-            ))
-          )}
+          ))}
         </div>
 
-        {isLimited && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mt-8 text-center py-8 border-t border-slate-800"
-          >
-            <p className="text-slate-400 mb-4">
-              {filteredRfps.length - 5} more RFPs hidden. Upgrade to see all opportunities.
-            </p>
-            <button
-              onClick={() => router.push("/pricing")}
-              className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold rounded-xl transition-colors inline-flex items-center gap-2"
-            >
-              <Star className="w-5 h-5" />
-              Unlock All RFPs
-            </button>
-          </motion.div>
-        )}
-
-        {hasMore && plan !== "free" && (
-          <div className="mt-8 text-center">
-            <button
-              onClick={() => setVisibleCount((prev) => prev + 20)}
-              className="px-6 py-3 border border-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors"
-            >
-              Load More RFPs
-            </button>
+        {!isPaid && hiddenCount > 0 && (
+          <div className="mt-8 text-center py-12 bg-gradient-to-b from-transparent to-slate-900/50 rounded-xl border border-dashed border-slate-800">
+            <Lock className="w-8 h-8 text-slate-600 mx-auto mb-3" />
+            <p className="text-slate-400 mb-4">Showing {displayRfps.length} of {filteredRfps.length} RFPs</p>
+            <Link href="/pricing" className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-black font-semibold px-6 py-3 rounded-xl transition-colors">
+              <Zap className="w-4 h-4" />
+              Upgrade to Unlock All
+            </Link>
           </div>
         )}
       </div>
     </div>
   );
 }
+
+const staticRfps: RFP[] = [
+  {
+    id: "1", title: "IT Support Services - VA", agency: "Dept of Veterans Affairs",
+    description: "Comprehensive IT support services including help desk, network management, and cybersecurity monitoring for VA facilities nationwide.",
+    budget: "$2,500,000", postedDate: "2026-08-10", dueDate: "2026-09-15",
+    naicsCode: "541512", contractType: "Small Business", solicitationNumber: "36C10B26Q0001", matchScore: 92,
+  },
+  {
+    id: "2", title: "Cloud Migration & Infrastructure - USDA", agency: "US Dept of Agriculture",
+    description: "Enterprise cloud migration project to modernize USDA legacy systems. Includes AWS/Azure infrastructure setup, data migration, and staff training.",
+    budget: "$8,750,000", postedDate: "2026-08-08", dueDate: "2026-10-01",
+    naicsCode: "541513", contractType: "Open Competition", solicitationNumber: "AG-3F-26-0002", matchScore: 88,
+  },
+  {
+    id: "3", title: "Cybersecurity Assessment - Texas DIR", agency: "TX Dept of Info Resources",
+    description: "Statewide cybersecurity risk assessment and penetration testing for Texas government agencies. NIST framework compliance required.",
+    budget: "$1,200,000", postedDate: "2026-08-12", dueDate: "2026-09-20",
+    naicsCode: "541519", contractType: "Small Business", solicitationNumber: "DIR-2026-SEC-0045", matchScore: 85,
+  },
+  {
+    id: "4", title: "Software Development - DHS", agency: "Dept of Homeland Security",
+    description: "Custom software development for border security data analytics platform. Agile methodology, TS clearance required for team leads.",
+    budget: "$15,000,000", postedDate: "2026-08-05", dueDate: "2026-11-30",
+    naicsCode: "541511", contractType: "Open Competition", solicitationNumber: "HSHQDC-26-Q-00421", matchScore: 91,
+  },
+  {
+    id: "5", title: "Network Infrastructure - GSA", agency: "General Services Administration",
+    description: "Federal building network infrastructure upgrade including fiber optic installation, WiFi 6E deployment, and network security appliances.",
+    budget: "$4,300,000", postedDate: "2026-08-14", dueDate: "2026-09-30",
+    naicsCode: "541512", contractType: "Small Business", solicitationNumber: "GS-26F-0123", matchScore: 78,
+  },
+  {
+    id: "6", title: "Data Analytics Platform - HHS", agency: "Dept of Health & Human Services",
+    description: "Healthcare data analytics platform for Medicare/Medicaid fraud detection. Machine learning expertise required.",
+    budget: "$12,500,000", postedDate: "2026-08-01", dueDate: "2026-10-15",
+    naicsCode: "541511", contractType: "Open Competition", solicitationNumber: "HHS-OS-26-0007", matchScore: 89,
+  },
+];

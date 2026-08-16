@@ -14,11 +14,15 @@ export async function GET(req: NextRequest) {
     const userId = searchParams.get("userId");
 
     if (!userId) {
-      return NextResponse.json({ plan: "free", status: "active" });
+      return NextResponse.json({ error: "userId required" }, { status: 400 });
     }
 
     const result = await pool.query(
-      `SELECT * FROM subscriptions WHERE user_id = $1 AND status = 'active' ORDER BY created_at DESC LIMIT 1`,
+      `SELECT plan, status, paypal_subscription_id, current_period_end 
+       FROM subscriptions 
+       WHERE user_id = $1 
+       ORDER BY created_at DESC 
+       LIMIT 1`,
       [userId]
     );
 
@@ -27,8 +31,11 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json(result.rows[0]);
-  } catch (error: any) {
+  } catch (error) {
     console.error("Subscription status error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch subscription status" },
+      { status: 500 }
+    );
   }
 }
