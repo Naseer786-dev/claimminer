@@ -1,129 +1,97 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { motion } from "framer-motion"
+import { FileText, Bell, TrendingUp, DollarSign, ArrowRight } from "lucide-react"
 import Link from "next/link"
-import { FileText, TrendingUp, Bookmark, Clock, Zap } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-
-const stats = {
-  totalRfps: 1247,
-  newMatches: 23,
-  savedRfps: 8,
-  closingSoon: 14,
-}
-
-const recentMatches = [
-  { id: "1", title: "IT Support Services", agency: "Dept of Veterans Affairs", level: "Federal", value: 2500000, deadline: "2026-08-25", score: 96, setAside: "Small Business", naics: "541511" },
-  { id: "2", title: "Cybersecurity Assessment", agency: "State of Texas", level: "State", value: 450000, deadline: "2026-09-03", score: 91, setAside: null, naics: "541512" },
-  { id: "3", title: "Cloud Migration Project", agency: "City of Austin", level: "Local", value: 180000, deadline: "2026-08-30", score: 88, setAside: "Woman-Owned", naics: "541519" },
-  { id: "4", title: "Network Infrastructure", agency: "Dept of Defense", level: "Federal", value: 8200000, deadline: "2026-09-15", score: 85, setAside: "SDVOSB", naics: "541513" },
-]
+import { StatsCard } from "@/components/stats-card"
+import { DashboardSkeleton } from "@/components/loading-skeleton"
 
 export default function DashboardPage() {
+  const [stats, setStats] = useState<any>(null)
+  const [recentRfps, setRecentRfps] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [statsRes, rfpsRes] = await Promise.all([
+          fetch("/api/stats"),
+          fetch("/api/rfps?limit=5"),
+        ])
+        const statsData = await statsRes.json()
+        const rfpsData = await rfpsRes.json()
+        setStats(statsData)
+        setRecentRfps(rfpsData.slice(0, 5))
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  if (loading) return (
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <DashboardSkeleton />
+    </div>
+  )
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-slate-500 text-sm mt-1">{stats.newMatches} new matches today · {stats.closingSoon} closing soon</p>
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-8"
+      >
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Dashboard</h1>
+        <p className="text-slate-500 dark:text-slate-400 mt-1">Track your government contract opportunities</p>
+      </motion.div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <StatsCard title="Active RFPs" value={stats?.totalRfps || "0"} change="+12% this week" icon={FileText} delay={0} />
+        <StatsCard title="Your Alerts" value={stats?.totalAlerts || "0"} change="3 new matches" icon={Bell} delay={0.1} />
+        <StatsCard title="Tracked Value" value={stats?.trackedValue || "$0"} change="+8.5% this month" icon={DollarSign} delay={0.2} />
+        <StatsCard title="Match Score" value={stats?.avgMatch || "0%"} change="+5% improvement" icon={TrendingUp} delay={0.3} />
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm"
+      >
+        <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Recent RFPs</h2>
+          <Link href="/rfps" className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1">
+            View all <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
-        <Link href="/alerts/new">
-          <Button><Zap className="w-4 h-4 mr-2" /> Create Alert</Button>
-        </Link>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Link href="/rfps" className="block">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center gap-2"><FileText className="w-4 h-4" /> Total RFPs</CardDescription>
-              <CardTitle className="text-3xl">{stats.totalRfps.toLocaleString()}</CardTitle>
-            </CardHeader>
-            <CardContent><p className="text-xs text-slate-500">Tracked across all sources</p></CardContent>
-          </Card>
-        </Link>
-
-        <Link href="/rfps" className="block">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center gap-2"><TrendingUp className="w-4 h-4" /> New Matches</CardDescription>
-              <CardTitle className="text-3xl">{stats.newMatches}</CardTitle>
-            </CardHeader>
-            <CardContent><p className="text-xs text-green-600">↑ 8 since yesterday</p></CardContent>
-          </Card>
-        </Link>
-
-        <Link href="/rfps" className="block">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center gap-2"><Bookmark className="w-4 h-4" /> Saved RFPs</CardDescription>
-              <CardTitle className="text-3xl">{stats.savedRfps}</CardTitle>
-            </CardHeader>
-            <CardContent><p className="text-xs text-slate-500">Actively tracking</p></CardContent>
-          </Card>
-        </Link>
-
-        <Link href="/rfps" className="block">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center gap-2"><Clock className="w-4 h-4" /> Closing Soon</CardDescription>
-              <CardTitle className="text-3xl">{stats.closingSoon}</CardTitle>
-            </CardHeader>
-            <CardContent><p className="text-xs text-amber-600">Within 7 days</p></CardContent>
-          </Card>
-        </Link>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader className="flex items-center justify-between">
-              <CardTitle>Top Matches for You</CardTitle>
-              <Link href="/rfps" className="text-sm text-blue-600 hover:text-blue-800">View all</Link>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {recentMatches.map((match) => (
-                <div key={match.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-slate-900">{match.title}</h3>
-                      <Badge variant={match.score >= 90 ? "default" : "secondary"}>{match.score}% match</Badge>
-                    </div>
-                    <p className="text-sm text-slate-500 mt-1">{match.agency} · {match.level} · NAICS {match.naics}</p>
-                    <div className="flex items-center gap-3 mt-2 text-sm text-slate-600">
-                      <span className="font-medium">${(match.value / 1000000).toFixed(1)}M</span>
-                      <span>Due {new Date(match.deadline).toLocaleDateString()}</span>
-                      {match.setAside && <Badge variant="outline">{match.setAside}</Badge>}
-                    </div>
-                  </div>
-                  <Link href={`/rfps/${match.id}`} className="text-sm text-blue-600 hover:text-blue-800 inline-flex items-center gap-1">
-                    View →
-                  </Link>
+        <div className="divide-y divide-slate-200 dark:divide-slate-800">
+          {recentRfps.map((rfp: any, i: number) => (
+            <motion.div
+              key={rfp.id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.5 + i * 0.05 }}
+            >
+              <Link href={`/rfps/${rfp.id}`} className="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-medium text-slate-900 dark:text-white truncate">{rfp.title}</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{rfp.agency} · {rfp.agencyLevel}</p>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
+                <div className="flex items-center gap-4 ml-4">
+                  <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{rfp.value}</span>
+                  <span className="text-xs px-2 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 font-medium">
+                    {Math.round(rfp.matchScore || 0)}% match
+                  </span>
+                </div>
+              </Link>
+            </motion.div>
+          ))}
         </div>
-
-        <div>
-          <Card>
-            <CardHeader><CardTitle>Quick Actions</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <Link href="/alerts/new" className="block p-4 border rounded-lg hover:bg-slate-50">
-                <h3 className="font-medium text-slate-900">Create Alert</h3>
-                <p className="text-sm text-slate-500">Get notified when matching RFPs are posted</p>
-              </Link>
-              <Link href="/rfps" className="block p-4 border rounded-lg hover:bg-slate-50">
-                <h3 className="font-medium text-slate-900">Browse All RFPs</h3>
-                <p className="text-sm text-slate-500">Search and filter 1,200+ active opportunities</p>
-              </Link>
-              <Link href="/profile" className="block p-4 border rounded-lg hover:bg-slate-50">
-                <h3 className="font-medium text-slate-900">Update Profile</h3>
-                <p className="text-sm text-slate-500">Improve match accuracy with NAICS codes</p>
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      </motion.div>
     </div>
   )
 }

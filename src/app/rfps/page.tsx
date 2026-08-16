@@ -1,78 +1,123 @@
-import Link from 'next/link'
-import { FileText, Bookmark, Search } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+"use client"
 
-const rfps = [
-  { id: "1", title: "IT Support Services", agency: "Dept of Veterans Affairs", level: "Federal", value: 2500000, deadline: "2026-08-25", status: "Open", setAside: "Small Business", naics: "541511" },
-  { id: "2", title: "Cybersecurity Assessment", agency: "State of Texas", level: "State", value: 450000, deadline: "2026-09-03", status: "Open", setAside: null, naics: "541512" },
-  { id: "3", title: "Cloud Migration Project", agency: "City of Austin", level: "Local", value: 180000, deadline: "2026-08-30", status: "Closing Soon", setAside: "Woman-Owned", naics: "541519" },
-  { id: "4", title: "Network Infrastructure", agency: "Dept of Defense", level: "Federal", value: 8200000, deadline: "2026-09-15", status: "Open", setAside: "SDVOSB", naics: "541513" },
-  { id: "5", title: "Software Development", agency: "State of California", level: "State", value: 1200000, deadline: "2026-08-28", status: "Closing Soon", setAside: "Small Business", naics: "541511" },
-  { id: "6", title: "Data Analytics Platform", agency: "City of New York", level: "Local", value: 350000, deadline: "2026-09-10", status: "Open", setAside: null, naics: "541519" },
-]
+import { useEffect, useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import { Search, Filter, SlidersHorizontal } from "lucide-react"
+import Link from "next/link"
+import { RfpCardSkeleton } from "@/components/loading-skeleton"
 
 export default function RfpsPage() {
+  const [rfps, setRfps] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState("")
+  const [filter, setFilter] = useState("all")
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await fetch("/api/rfps")
+        const data = await res.json()
+        setRfps(data)
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  const filtered = rfps.filter((rfp) => {
+    const matchesSearch = !search || rfp.title.toLowerCase().includes(search.toLowerCase())
+    const matchesFilter = filter === "all" || rfp.agencyLevel === filter
+    return matchesSearch && matchesFilter
+  })
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">RFPs</h1>
-          <p className="text-slate-500 text-sm mt-1">{rfps.length} active opportunities found</p>
-        </div>
-      </div>
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Government RFPs</h1>
+        <p className="text-slate-500 dark:text-slate-400 mt-1">Find and track government contract opportunities</p>
+      </motion.div>
 
-      <div className="flex gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input placeholder="Search RFPs..." className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search RFPs..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+          />
         </div>
-        <Button variant="outline">Filters</Button>
+        <div className="flex gap-2">
+          {["all", "Federal", "State", "Local"].map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                filter === f
+                  ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20"
+                  : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-emerald-300"
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <table className="w-full">
-            <thead className="bg-slate-50 border-b">
-              <tr>
-                <th className="text-left py-3 px-4 text-xs font-medium text-slate-500 uppercase">RFP</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-slate-500 uppercase">Agency</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-slate-500 uppercase">Value</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-slate-500 uppercase">Deadline</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-slate-500 uppercase">Status</th>
-                <th className="text-right py-3 px-4 text-xs font-medium text-slate-500 uppercase"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rfps.map((rfp) => (
-                <tr key={rfp.id} className="border-b hover:bg-slate-50">
-                  <td className="py-4 px-4">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-slate-400" />
-                      <div>
-                        <p className="font-medium text-slate-900">{rfp.title}</p>
-                        <p className="text-xs text-slate-500">NAICS {rfp.naics}{rfp.setAside ? ` · ${rfp.setAside}` : ''}</p>
+      {loading ? (
+        <div className="space-y-4">
+          {[1, 2, 3, 4].map((i) => <RfpCardSkeleton key={i} />)}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <AnimatePresence>
+            {filtered.map((rfp, i) => (
+              <motion.div
+                key={rfp.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ delay: i * 0.05 }}
+              >
+                <Link href={`/rfps/${rfp.id}`}>
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-800 transition-all group">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                          {rfp.title}
+                        </h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{rfp.agency} · {rfp.state || "Federal"}</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-300 mt-2 line-clamp-2">{rfp.description}</p>
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          <span className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 text-xs font-medium">
+                            {rfp.agencyLevel}
+                          </span>
+                          <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-medium">
+                            NAICS: {rfp.naics}
+                          </span>
+                          <span className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400 text-xs font-medium">
+                            Due: {rfp.dueDate ? new Date(rfp.dueDate).toLocaleDateString() : "TBD"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="ml-6 text-right">
+                        <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{rfp.value}</p>
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-300 text-xs font-bold mt-2">
+                          {Math.round(rfp.matchScore || 0)}% match
+                        </span>
                       </div>
                     </div>
-                  </td>
-                  <td className="py-4 px-4 text-sm text-slate-600">{rfp.agency}<br/><span className="text-xs text-slate-400">{rfp.level}</span></td>
-                  <td className="py-4 px-4 text-sm font-medium text-slate-900">${(rfp.value / 1000000).toFixed(1)}M</td>
-                  <td className="py-4 px-4 text-sm text-slate-600">{new Date(rfp.deadline).toLocaleDateString()}</td>
-                  <td className="py-4 px-4">
-                    <Badge variant={rfp.status === 'Open' ? 'default' : 'secondary'}>{rfp.status}</Badge>
-                  </td>
-                  <td className="py-4 px-4 text-right">
-                    <Link href={`/rfps/${rfp.id}`} className="text-sm text-blue-600 hover:text-blue-800 inline-flex items-center gap-1">
-                      <Bookmark className="w-4 h-4" /> View
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
     </div>
   )
 }

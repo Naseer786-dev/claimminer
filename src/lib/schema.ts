@@ -1,76 +1,57 @@
-import { pgTable, uuid, text, timestamp, decimal, boolean, date, pgEnum } from "drizzle-orm/pg-core";
-
-export const rfpStatusEnum = pgEnum("rfp_status", ["open", "closing_soon", "closed"]);
-export const alertTypeEnum = pgEnum("alert_type", ["email", "sms", "webhook"]);
-export const subscriptionTierEnum = pgEnum("subscription_tier", ["free", "starter", "pro", "enterprise"]);
+import { pgTable, serial, varchar, text, timestamp, integer, boolean, jsonb, real } from "drizzle-orm/pg-core"
 
 export const users = pgTable("users", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  clerkId: text("clerk_id").notNull().unique(),
-  email: text("email").notNull().unique(),
-  name: text("name").notNull(),
-  avatarUrl: text("avatar_url"),
-  companyName: text("company_name"),
-  naicsCodes: text("naics_codes").array(),
-  capabilities: text("capabilities").array(),
-  subscriptionTier: subscriptionTierEnum("subscription_tier").default("free"),
-  stripeCustomerId: text("stripe_customer_id"),
+  id: serial("id").primaryKey(),
+  clerkId: varchar("clerk_id", { length: 255 }).notNull().unique(),
+  email: varchar("email", { length: 255 }).notNull(),
+  name: varchar("name", { length: 255 }),
+  company: varchar("company", { length: 255 }),
+  role: varchar("role", { length: 50 }).default("contractor"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+})
 
 export const rfps = pgTable("rfps", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  sourceId: text("source_id").notNull().unique(),
-  title: text("title").notNull(),
-  agency: text("agency").notNull(),
-  agencyLevel: text("agency_level").notNull(), // federal, state, local
-  state: text("state"),
-  naicsCodes: text("naics_codes").array(),
+  id: serial("id").primaryKey(),
+  title: varchar("title", { length: 500 }).notNull(),
+  agency: varchar("agency", { length: 255 }).notNull(),
+  agencyLevel: varchar("agency_level", { length: 50 }).notNull(),
+  state: varchar("state", { length: 50 }),
   description: text("description"),
-  estimatedValue: decimal("estimated_value", { precision: 14, scale: 2 }),
-  postedDate: date("posted_date"),
-  responseDeadline: date("response_deadline"),
-  status: rfpStatusEnum("status").default("open"),
-  sourceUrl: text("source_url"),
-  solicitationNumber: text("solicitation_number"),
-  setAside: text("set_aside"), // small business, woman-owned, etc.
+  value: varchar("value", { length: 100 }),
+  dueDate: timestamp("due_date"),
+  naics: varchar("naics", { length: 50 }),
+  status: varchar("status", { length: 50 }).default("open"),
+  matchScore: real("match_score").default(0),
+  category: varchar("category", { length: 100 }),
   createdAt: timestamp("created_at").defaultNow(),
-});
+})
 
 export const alerts = pgTable("alerts", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().references(() => users.id),
-  name: text("name").notNull(),
-  keywords: text("keywords").array(),
-  naicsCodes: text("naics_codes").array(),
-  agencyLevel: text("agency_level"), // federal, state, local, all
-  states: text("states").array(),
-  minValue: decimal("min_value", { precision: 14, scale: 2 }),
-  maxValue: decimal("max_value", { precision: 14, scale: 2 }),
-  setAsideTypes: text("set_aside_types").array(),
-  isActive: boolean("is_active").default(true),
-  notifyEmail: boolean("notify_email").default(true),
-  notifyDaily: boolean("notify_daily").default(true),
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  name: varchar("name", { length: 255 }).notNull(),
+  keywords: jsonb("keywords").$type<string[]>(),
+  naicsCodes: jsonb("naics_codes").$type<string[]>(),
+  agencyLevel: varchar("agency_level", { length: 50 }),
+  states: jsonb("states").$type<string[]>(),
+  minValue: varchar("min_value", { length: 100 }),
+  maxValue: varchar("max_value", { length: 100 }),
+  status: varchar("status", { length: 50 }).default("active"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+})
 
-export const matches = pgTable("matches", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  alertId: uuid("alert_id").notNull().references(() => alerts.id),
-  rfpId: uuid("rfp_id").notNull().references(() => rfps.id),
-  userId: uuid("user_id").notNull().references(() => users.id),
-  matchScore: decimal("match_score", { precision: 5, scale: 2 }),
-  isRead: boolean("is_read").default(false),
-  isSaved: boolean("is_saved").default(false),
-  isDismissed: boolean("is_dismissed").default(false),
+export const favorites = pgTable("favorites", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  rfpId: integer("rfp_id").references(() => rfps.id),
   createdAt: timestamp("created_at").defaultNow(),
-});
+})
 
 export const trackedRfps = pgTable("tracked_rfps", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().references(() => users.id),
-  rfpId: uuid("rfp_id").notNull().references(() => rfps.id),
-  status: text("status").default("tracking"), // tracking, bidding, submitted, won, lost
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  rfpId: integer("rfp_id").references(() => rfps.id),
   notes: text("notes"),
+  status: varchar("status", { length: 50 }).default("tracking"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+})

@@ -1,154 +1,134 @@
 "use client"
 
-import { useState } from "react"
-import Link from "next/link"
-import { Plus, Trash2, Bell } from "lucide-react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-
-interface Alert {
-  id: string
-  name: string
-  status: "Active" | "Paused"
-  matches: number
-  keywords: string[]
-  level: string
-  naics: string[]
-  minValue: string
-  states?: string
-}
-
-const initialAlerts: Alert[] = [
-  {
-    id: "1",
-    name: "IT Services - Federal",
-    status: "Active",
-    matches: 12,
-    keywords: ["IT support", "help desk", "managed services"],
-    level: "Federal",
-    naics: ["541511", "541512"],
-    minValue: "$100K",
-  },
-  {
-    id: "2",
-    name: "Cybersecurity - All Levels",
-    status: "Active",
-    matches: 8,
-    keywords: ["cybersecurity", "penetration test", "security audit"],
-    level: "All",
-    naics: ["541512", "541519"],
-    minValue: "$50K",
-  },
-  {
-    id: "3",
-    name: "Texas State Contracts",
-    status: "Paused",
-    matches: 5,
-    keywords: ["software", "development"],
-    level: "State",
-    naics: ["541511"],
-    minValue: "$25K",
-    states: "TX",
-  },
-]
+import { useEffect, useState } from "react"
+import { motion } from "framer-motion"
+import { Plus, Bell, Trash2 } from "lucide-react"
 
 export default function AlertsPage() {
-  const [alerts, setAlerts] = useState<Alert[]>(initialAlerts)
+  const [alerts, setAlerts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
 
-  const toggleAlert = (id: string) => {
-    setAlerts((prev) =>
-      prev.map((alert) =>
-        alert.id === id
-          ? { ...alert, status: alert.status === "Active" ? "Paused" : "Active" }
-          : alert
-      )
-    )
-  }
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await fetch("/api/alerts")
+        const data = await res.json()
+        setAlerts(Array.isArray(data) ? data : [])
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
 
-  const deleteAlert = (id: string) => {
-    setAlerts((prev) => prev.filter((alert) => alert.id !== id))
+  async function createAlert(e: React.FormEvent) {
+    e.preventDefault()
+    const form = e.target as HTMLFormElement
+    const formData = new FormData(form)
+
+    const alert = {
+      name: formData.get("name"),
+      keywords: (formData.get("keywords") as string).split(",").map((k) => k.trim()),
+      agencyLevel: formData.get("agencyLevel"),
+      states: (formData.get("states") as string).split(",").map((s) => s.trim()),
+    }
+
+    const res = await fetch("/api/alerts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(alert),
+    })
+
+    if (res.ok) {
+      const newAlert = await res.json()
+      setAlerts([...alerts, newAlert])
+      setShowForm(false)
+      form.reset()
+    }
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">My Alerts</h1>
-          <p className="text-slate-500 text-sm mt-1">Get notified when matching RFPs are posted</p>
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Alert Settings</h1>
+        <p className="text-slate-500 dark:text-slate-400 mt-1">Get notified when new RFPs match your criteria</p>
+      </motion.div>
+
+      <button onClick={() => setShowForm(!showForm)}
+        className="mb-6 flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-emerald-600/20">
+        <Plus className="h-4 w-4" /> Create New Alert
+      </button>
+
+      {showForm && (
+        <motion.form initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+          onSubmit={createAlert}
+          className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 mb-6 shadow-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Alert Name</label>
+              <input name="name" required className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Agency Level</label>
+              <select name="agencyLevel" className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="all">All Levels</option>
+                <option value="Federal">Federal</option>
+                <option value="State">State</option>
+                <option value="Local">Local</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Keywords</label>
+              <input name="keywords" placeholder="IT, cybersecurity, cloud" className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">States</label>
+              <input name="states" placeholder="TX, CA, NY" className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <button type="submit" className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors">Save Alert</button>
+          </div>
+        </motion.form>
+      )}
+
+      {loading ? (
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 animate-pulse">
+              <div className="h-5 bg-slate-200 dark:bg-slate-800 rounded w-1/3 mb-3"></div>
+              <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-1/2"></div>
+            </div>
+          ))}
         </div>
-        <Link href="/alerts/new">
-          <Button><Plus className="w-4 h-4 mr-2" /> New Alert</Button>
-        </Link>
-      </div>
-
-      <div className="space-y-4">
-        {alerts.length === 0 && (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Bell className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-slate-900 mb-2">No alerts yet</h3>
-              <p className="text-slate-500 mb-4">Create your first alert to get notified about matching RFPs</p>
-              <Link href="/alerts/new">
-                <Button><Plus className="w-4 h-4 mr-2" /> Create Alert</Button>
-              </Link>
-            </CardContent>
-          </Card>
-        )}
-
-        {alerts.map((alert) => (
-          <Card key={alert.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="font-semibold text-slate-900">{alert.name}</h3>
-                    <Badge variant={alert.status === "Active" ? "default" : "secondary"}>
-                      {alert.status}
-                    </Badge>
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                      {alert.matches} matches
-                    </Badge>
+      ) : (
+        <div className="space-y-4">
+          {alerts.map((alert, i) => (
+            <motion.div key={alert.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
+              className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center">
+                    <Bell className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                   </div>
-
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {alert.keywords.map((kw) => (
-                      <span key={kw} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-md">
-                        {kw}
-                      </span>
-                    ))}
+                  <div>
+                    <h3 className="font-semibold text-slate-900 dark:text-white">{alert.name}</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      {alert.keywords?.join(", ") || "No keywords"} · {alert.agencyLevel || "All levels"}
+                    </p>
                   </div>
-
-                  <p className="text-sm text-slate-500">
-                    {alert.level} · NAICS: {alert.naics.join(", ")} · Min: {alert.minValue}
-                    {alert.states ? ` · States: ${alert.states}` : ""}
-                  </p>
                 </div>
-
-                <div className="flex items-center gap-2 ml-4">
-                  <button
-                    onClick={() => toggleAlert(alert.id)}
-                    className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
-                      alert.status === "Active"
-                        ? "bg-green-100 text-green-700 hover:bg-green-200"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                    }`}
-                  >
-                    {alert.status === "Active" ? "On" : "Off"}
-                  </button>
-                  <button
-                    onClick={() => deleteAlert(alert.id)}
-                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Delete alert"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                <button className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors">
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
