@@ -59,7 +59,6 @@ export default function RFPsPage() {
 
   async function fetchRFPs() {
     try {
-      // Try SAM.gov API first, fallback to local
       const [samRes, localRes] = await Promise.allSettled([
         fetch("/api/rfps/sam"),
         fetch("/api/rfps"),
@@ -96,7 +95,6 @@ export default function RFPsPage() {
       const data = await res.json();
       setPlan(data.plan || "free");
 
-      // Set visible count based on plan
       const limits: Record<string, number> = {
         free: 5,
         starter: 50,
@@ -133,8 +131,9 @@ export default function RFPsPage() {
     setFilteredRfps(filtered);
   }
 
-  const states = [...new Set(rfps.map((r) => r.state))].sort();
-  const levels = [...new Set(rfps.map((r) => r.agency_level))].sort();
+  // FIX: Use Array.from instead of spread operator for Set
+  const states = Array.from(new Set(rfps.map((r) => r.state))).sort();
+  const levels = Array.from(new Set(rfps.map((r) => r.agency_level))).sort();
 
   const displayedRfps = filteredRfps.slice(0, visibleCount);
   const hasMore = filteredRfps.length > visibleCount;
@@ -143,7 +142,6 @@ export default function RFPsPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">Government RFPs</h1>
           <p className="text-slate-400">
@@ -151,7 +149,6 @@ export default function RFPsPage() {
           </p>
         </div>
 
-        {/* Plan Banner for Free Users */}
         {plan === "free" && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -179,7 +176,6 @@ export default function RFPsPage() {
           </motion.div>
         )}
 
-        {/* Search & Filter Bar */}
         <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 mb-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
@@ -227,7 +223,6 @@ export default function RFPsPage() {
           </div>
         </div>
 
-        {/* RFP Cards */}
         <div className="space-y-4">
           {loading ? (
             Array.from({ length: 3 }).map((_, i) => (
@@ -327,7 +322,6 @@ export default function RFPsPage() {
           )}
         </div>
 
-        {/* Upgrade CTA for limited results */}
         {isLimited && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -347,7 +341,6 @@ export default function RFPsPage() {
           </motion.div>
         )}
 
-        {/* Load More for paid users */}
         {hasMore && plan !== "free" && (
           <div className="mt-8 text-center">
             <button
