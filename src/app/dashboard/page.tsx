@@ -85,11 +85,11 @@ const statCards = [
   },
 ];
 
-const planConfig: Record<string, { name: string; icon: any; color: string; price: string; badge: string }> = {
-  free: { name: "Free Plan", icon: Zap, color: "text-slate-400", price: "$0", badge: "bg-slate-700 text-slate-300" },
-  starter: { name: "Starter", icon: Zap, color: "text-emerald-400", price: "$49/mo", badge: "bg-emerald-500/20 text-emerald-400" },
-  pro: { name: "Professional", icon: Crown, color: "text-blue-400", price: "$99/mo", badge: "bg-blue-500/20 text-blue-400" },
-  enterprise: { name: "Enterprise", icon: Building2, color: "text-purple-400", price: "$249/mo", badge: "bg-purple-500/20 text-purple-400" },
+const planConfig: Record<string, { name: string; icon: any; color: string; price: string; badge: string; nextPlan: string }> = {
+  free: { name: "Free Plan", icon: Zap, color: "text-slate-400", price: "$0", badge: "bg-slate-700 text-slate-300", nextPlan: "Starter" },
+  starter: { name: "Starter", icon: Zap, color: "text-emerald-400", price: "$49/mo", badge: "bg-emerald-500/20 text-emerald-400", nextPlan: "Professional" },
+  pro: { name: "Professional", icon: Crown, color: "text-blue-400", price: "$99/mo", badge: "bg-blue-500/20 text-blue-400", nextPlan: "Enterprise" },
+  enterprise: { name: "Enterprise", icon: Building2, color: "text-purple-400", price: "$249/mo", badge: "bg-purple-500/20 text-purple-400", nextPlan: "" },
 };
 
 export default function DashboardPage() {
@@ -175,6 +175,7 @@ export default function DashboardPage() {
   const currentPlan = planConfig[subscription?.plan || "free"];
   const PlanIcon = currentPlan?.icon || Zap;
   const isFree = subscription?.plan === "free" || !subscription;
+  const canUpgrade = currentPlan?.nextPlan !== "";
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -194,14 +195,14 @@ export default function DashboardPage() {
           className="mb-6 bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex items-center justify-between"
         >
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg bg-slate-800`}>
+            <div className="p-2 rounded-lg bg-slate-800">
               <PlanIcon className={`w-5 h-5 ${currentPlan?.color || "text-slate-400"}`} />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-white">{currentPlan?.name || "Free Plan"}</span>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${currentPlan?.badge || "bg-slate-700 text-slate-300"}`}>
-                  {subscription?.status === "active" && subscription?.plan !== "free" ? "Active" : isFree ? "Free" : subscription?.status}
+                  {subscription?.status === "active" && !isFree ? "Active" : isFree ? "Free" : subscription?.status}
                 </span>
               </div>
               <p className="text-xs text-slate-400">
@@ -219,17 +220,51 @@ export default function DashboardPage() {
             >
               Billing
             </button>
-            {isFree && (
+            {canUpgrade && (
               <button
                 onClick={() => router.push("/pricing")}
                 className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
               >
                 <Crown className="w-4 h-4" />
-                Upgrade
+                Upgrade to {currentPlan?.nextPlan}
               </button>
             )}
           </div>
         </motion.div>
+
+        {/* Upgrade CTA Banner */}
+        {canUpgrade && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mb-8 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20 rounded-xl p-6 flex items-center justify-between"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-emerald-500/20 rounded-xl">
+                <CreditCard className="w-6 h-6 text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">
+                  {isFree ? "Unlock Full Access" : `Upgrade to ${currentPlan?.nextPlan}`}
+                </h3>
+                <p className="text-sm text-slate-400">
+                  {isFree
+                    ? "You\'re on the Free plan. Upgrade to search unlimited RFPs, get more alerts, and access advanced features."
+                    : `Get more power with ${currentPlan?.nextPlan}. More alerts, team seats, and API access.`
+                  }
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push("/pricing")}
+              className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold rounded-xl transition-colors flex items-center gap-2 shrink-0"
+            >
+              View Pricing
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -255,9 +290,7 @@ export default function DashboardPage() {
                       )}
                     </p>
                   </div>
-                  <div
-                    className={`p-3 rounded-lg ${stat.bgColor} group-hover:scale-110 transition-transform`}
-                  >
+                  <div className={`p-3 rounded-lg ${stat.bgColor} group-hover:scale-110 transition-transform`}>
                     <Icon className={`w-5 h-5 ${stat.color}`} />
                   </div>
                 </div>
@@ -269,35 +302,6 @@ export default function DashboardPage() {
             );
           })}
         </div>
-
-        {/* Upgrade CTA for Free Users */}
-        {isFree && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="mb-8 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20 rounded-xl p-6 flex items-center justify-between"
-          >
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-emerald-500/20 rounded-xl">
-                <CreditCard className="w-6 h-6 text-emerald-400" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-white">Unlock Full Access</h3>
-                <p className="text-sm text-slate-400">
-                  You\'re on the Free plan. Upgrade to search unlimited RFPs, get more alerts, and access advanced features.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => router.push("/pricing")}
-              className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold rounded-xl transition-colors flex items-center gap-2 shrink-0"
-            >
-              View Pricing
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </motion.div>
-        )}
 
         {/* Recent RFPs */}
         <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden">

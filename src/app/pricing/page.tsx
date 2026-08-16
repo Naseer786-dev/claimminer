@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Check, Zap, Crown, Building2, ArrowRight, Loader2 } from "lucide-react";
+import { Check, Zap, Crown, Building2, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 
 declare global {
@@ -11,6 +11,13 @@ declare global {
     paypal?: any;
   }
 }
+
+// Hardcoded plan IDs (from your PayPal setup)
+const PAYPAL_PLANS = {
+  starter: "P-45N158797D214493ENKATHSY",
+  pro: "P-62M76978NH025890GNKATHTA",
+  enterprise: "P-8FS24293JU519284MNKATHTI",
+};
 
 const plans = [
   {
@@ -20,7 +27,7 @@ const plans = [
     description: "Perfect for solo contractors just getting started",
     icon: Zap,
     color: "emerald",
-    paypalPlanId: process.env.NEXT_PUBLIC_PAYPAL_PLAN_STARTER || "",
+    planId: PAYPAL_PLANS.starter,
     features: [
       "Up to 50 RFP searches/month",
       "5 saved alerts",
@@ -39,7 +46,7 @@ const plans = [
     description: "For growing teams that need more power",
     icon: Crown,
     color: "blue",
-    paypalPlanId: process.env.NEXT_PUBLIC_PAYPAL_PLAN_PRO || "",
+    planId: PAYPAL_PLANS.pro,
     features: [
       "Unlimited RFP searches",
       "20 saved alerts",
@@ -60,7 +67,7 @@ const plans = [
     description: "For large organizations with custom needs",
     icon: Building2,
     color: "purple",
-    paypalPlanId: process.env.NEXT_PUBLIC_PAYPAL_PLAN_ENTERPRISE || "",
+    planId: PAYPAL_PLANS.enterprise,
     features: [
       "Everything in Professional",
       "Unlimited alerts",
@@ -76,84 +83,120 @@ const plans = [
   },
 ];
 
-export default function PricingPage() {
+function PricingContent() {
   const router = useRouter();
   const { isSignedIn, user } = useUser();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [scriptLoaded, setScriptLoaded] = useState(false);
+  const [scriptError, setScriptError] = useState(false);
   const paypalRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const buttonsRendered = useRef<boolean[]>([false, false, false]);
+
+  const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "BAAImq2Jk4_ACYYGHWf6-CL1_151dWLTX7CRIWDnwjhqU_qbEDHWG2DZbpY_O3dzt75BTQMXNHjZeW6-E8";
 
   useEffect(() => {
-    // Load PayPal SDK
-    if (document.getElementById("paypal-script")) {
+    if (typeof window === "undefined") return;
+    if (window.paypal) {
       setScriptLoaded(true);
       return;
+    }
+    if (document.getElementById("paypal-script")) {
+      // Script already loading, wait for it
+      const checkPaypal = setInterval(() => {
+        if (window.paypal) {
+          setScriptLoaded(true);
+          clearInterval(checkPaypal);
+        }
+      }, 500);
+      return () => clearInterval(checkPaypal);
     }
 
     const script = document.createElement("script");
     script.id = "paypal-script";
-    script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}&vault=true&intent=subscription`;
-    script.onload = () => setScriptLoaded(true);
-    script.onerror = () => console.error("Failed to load PayPal SDK");
-    document.body.appendChild(script);
-
-    return () => {
-      // Don't remove on unmount to avoid reload issues
+    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&vault=true&intent=subscription&components=buttons`;
+    script.async = true;
+    script.onload = () => {
+      console.log("PayPal SDK loaded");
+      setScriptLoaded(true);
     };
-  }, []);
+    script.onerror = () => {
+      console.error("Failed to load PayPal SDK");
+      setScriptError(true);
+    };
+    document.body.appendChild(script);
+  }, [clientId]);
 
   useEffect(() => {
     if (!scriptLoaded || !window.paypal) return;
 
     plans.forEach((plan, index) => {
-      const container = paypalRefs.current[index];
-      if (!container || !plan.paypalPlanId) return;
+      if (plan.name === "Enterprise") return;
+      if (buttonsRendered.current[index]) return;
 
-      // Clear previous buttons
+      const container = paypalRefs.current[index];
+      if (!container) return;
+
+      // Clear previous content
       container.innerHTML = "";
 
-      window.paypal
-        .Buttons({
-          style: {
-            shape: "pill",
-            color: plan.popular ? "blue" : "white",
-            layout: "vertical",
-            label: "subscribe",
-          },
-          createSubscription: async (_data: any, actions: any) => {
-            if (!isSignedIn) {
-              router.push("/sign-in?redirect=/pricing");
-              return;
-            }
-            setLoadingPlan(plan.name);
-            return actions.subscription.create({
-              plan_id: plan.paypalPlanId,
-            });
-          },
-          onApprove: async (data: any) => {
-            console.log("Subscription approved:", data);
-            // Save subscription to your backend
-            await fetch("/api/paypal/save-subscription", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                subscriptionId: data.subscriptionID,
-                planId: plan.paypalPlanId,
-                userId: user?.id,
-                planName: plan.name.toLowerCase(),
-              }),
-            });
-            router.push("/settings/billing?success=true");
-          },
-          onError: (err: any) => {
-            console.error("PayPal error:", err);
-            setLoadingPlan(null);
-          },
-          onCancel: () => {
-            setLoadingPlan(null);
-          },
-        })
-        .render(container);
+      try {
+        window.paypal
+          .Buttons({
+            style: {
+              shape: "pill",
+              color: plan.popular ? "blue" : "white",
+              layout: "vertical",
+              label: "subscribe",
+              height: 40,
+            },
+            createSubscription: async (_data: any, actions: any) => {
+              if (!isSignedIn) {
+                router.push("/sign-in?redirect=/pricing");
+                return "";
+              }
+              setLoadingPlan(plan.name);
+              return actions.subscription.create({
+                plan_id: plan.planId,
+              });
+            },
+            onApprove: async (data: any) => {
+              console.log("Subscription approved:", data);
+              setLoadingPlan(null);
+              // Save to backend
+              try {
+                await fetch("/api/paypal/save-subscription", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    subscriptionId: data.subscriptionID,
+                    planId: plan.planId,
+                    userId: user?.id,
+                    planName: plan.name.toLowerCase(),
+                  }),
+                });
+              } catch (e) {
+                console.error("Save subscription error:", e);
+              }
+              router.push("/settings/billing?success=true");
+            },
+            onError: (err: any) => {
+              console.error("PayPal error:", err);
+              setLoadingPlan(null);
+            },
+            onCancel: () => {
+              setLoadingPlan(null);
+            },
+          })
+          .render(container)
+          .then(() => {
+            buttonsRendered.current[index] = true;
+          })
+          .catch((err: any) => {
+            console.error("PayPal render error:", err);
+          });
+      } catch (err) {
+        console.error("PayPal button init error:", err);
+      }
     });
   }, [scriptLoaded, isSignedIn, router, user]);
 
@@ -183,6 +226,16 @@ export default function PricingPage() {
             No credit card required to start.
           </motion.p>
         </div>
+
+        {/* Error Banner */}
+        {scriptError && (
+          <div className="mb-8 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3 max-w-2xl mx-auto">
+            <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+            <span className="text-red-400 text-sm">
+              PayPal payment system is temporarily unavailable. Please refresh the page or try again later.
+            </span>
+          </div>
+        )}
 
         {/* Pricing Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
@@ -262,13 +315,22 @@ export default function PricingPage() {
                     ) : (
                       <div
                         ref={(el) => { paypalRefs.current[index] = el; }}
-                        className="w-full"
+                        className="w-full min-h-[40px]"
                       />
                     )}
-                    {!scriptLoaded && !isEnterprise && (
-                      <div className="w-full py-3 px-4 rounded-xl bg-slate-800 text-center text-sm text-slate-500">
-                        Loading payment options...
+                    {!scriptLoaded && !scriptError && !isEnterprise && (
+                      <div className="w-full py-3 px-4 rounded-xl bg-slate-800 text-center">
+                        <Loader2 className="w-4 h-4 animate-spin mx-auto text-slate-500" />
+                        <p className="text-xs text-slate-500 mt-1">Loading PayPal...</p>
                       </div>
+                    )}
+                    {scriptError && !isEnterprise && (
+                      <button
+                        onClick={() => window.location.reload()}
+                        className="w-full py-3 px-4 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition-colors text-sm"
+                      >
+                        Retry PayPal
+                      </button>
                     )}
                   </div>
                 )}
@@ -310,5 +372,17 @@ export default function PricingPage() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+export default function PricingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+      </div>
+    }>
+      <PricingContent />
+    </Suspense>
   );
 }
