@@ -7,17 +7,16 @@ import { rfps } from "@/lib/schema"
 
 export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(req.url)
-    const agency = searchParams.get("agency")
-    const level = searchParams.get("level")
-    const state = searchParams.get("state")
-    const search = searchParams.get("search")
-
-    let query = db.select().from(rfps)
-    const results = await query
+    console.log("DATABASE_URL:", process.env.DATABASE_URL?.substring(0, 50))
+    const results = await db.select().from(rfps)
+    console.log("RFPs found:", results.length)
     return NextResponse.json(results)
-  } catch (error) {
-    console.error("RFPs error:", error)
-    return NextResponse.json([], { status: 200 })
+  } catch (error: any) {
+    console.error("RFPs ERROR:", error.message, error.stack)
+    return NextResponse.json({ 
+      error: error.message,
+      stack: error.stack,
+      db_url: process.env.DATABASE_URL?.substring(0, 50)
+    }, { status: 500 })
   }
 }
