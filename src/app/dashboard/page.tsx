@@ -12,7 +12,11 @@ import {
   MapPin,
   Building2,
   ArrowRight,
+  Crown,
+  Zap,
+  CreditCard,
 } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
 
 interface RFP {
   id: number;
@@ -34,6 +38,12 @@ interface Stats {
   totalValue: number;
   avgMatch: number;
   alerts: number;
+}
+
+interface Subscription {
+  plan: string;
+  status: string;
+  current_period_end: string;
 }
 
 const statCards = [
@@ -75,8 +85,16 @@ const statCards = [
   },
 ];
 
+const planConfig: Record<string, { name: string; icon: any; color: string; price: string; badge: string }> = {
+  free: { name: "Free Plan", icon: Zap, color: "text-slate-400", price: "$0", badge: "bg-slate-700 text-slate-300" },
+  starter: { name: "Starter", icon: Zap, color: "text-emerald-400", price: "$49/mo", badge: "bg-emerald-500/20 text-emerald-400" },
+  pro: { name: "Professional", icon: Crown, color: "text-blue-400", price: "$99/mo", badge: "bg-blue-500/20 text-blue-400" },
+  enterprise: { name: "Enterprise", icon: Building2, color: "text-purple-400", price: "$249/mo", badge: "bg-purple-500/20 text-purple-400" },
+};
+
 export default function DashboardPage() {
   const router = useRouter();
+  const { user, isLoaded } = useUser();
   const [rfps, setRfps] = useState<RFP[]>([]);
   const [stats, setStats] = useState<Stats>({
     totalRfps: 0,
@@ -84,11 +102,18 @@ export default function DashboardPage() {
     avgMatch: 0,
     alerts: 0,
   });
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (isLoaded && user) {
+      fetchSubscription();
+    }
+  }, [isLoaded, user]);
 
   async function fetchData() {
     try {
@@ -111,6 +136,16 @@ export default function DashboardPage() {
       console.error("Dashboard fetch error:", error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchSubscription() {
+    try {
+      const res = await fetch(`/api/subscription/status?userId=${user?.id}`);
+      const data = await res.json();
+      setSubscription(data);
+    } catch (error) {
+      console.error("Subscription fetch error:", error);
     }
   }
 
@@ -137,6 +172,9 @@ export default function DashboardPage() {
   ];
 
   const recentRfps = rfps.slice(0, 5);
+  const currentPlan = planConfig[subscription?.plan || "free"];
+  const PlanIcon = currentPlan?.icon || Zap;
+  const isFree = subscription?.plan === "free" || !subscription;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -148,6 +186,50 @@ export default function DashboardPage() {
             Track your government contract opportunities
           </p>
         </div>
+
+        {/* Subscription Status Banner */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg bg-slate-800`}>
+              <PlanIcon className={`w-5 h-5 ${currentPlan?.color || "text-slate-400"}`} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-white">{currentPlan?.name || "Free Plan"}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${currentPlan?.badge || "bg-slate-700 text-slate-300"}`}>
+                  {subscription?.status === "active" && subscription?.plan !== "free" ? "Active" : isFree ? "Free" : subscription?.status}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">
+                {isFree
+                  ? "Unlock unlimited RFPs and alerts with a paid plan"
+                  : `Next billing: ${subscription?.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "N/A"}`
+                }
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/settings/billing")}
+              className="px-3 py-1.5 text-sm text-slate-300 hover:text-white transition-colors"
+            >
+              Billing
+            </button>
+            {isFree && (
+              <button
+                onClick={() => router.push("/pricing")}
+                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+              >
+                <Crown className="w-4 h-4" />
+                Upgrade
+              </button>
+            )}
+          </div>
+        </motion.div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -187,6 +269,35 @@ export default function DashboardPage() {
             );
           })}
         </div>
+
+        {/* Upgrade CTA for Free Users */}
+        {isFree && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mb-8 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20 rounded-xl p-6 flex items-center justify-between"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-emerald-500/20 rounded-xl">
+                <CreditCard className="w-6 h-6 text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Unlock Full Access</h3>
+                <p className="text-sm text-slate-400">
+                  You\'re on the Free plan. Upgrade to search unlimited RFPs, get more alerts, and access advanced features.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push("/pricing")}
+              className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold rounded-xl transition-colors flex items-center gap-2 shrink-0"
+            >
+              View Pricing
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
 
         {/* Recent RFPs */}
         <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden">
