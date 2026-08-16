@@ -12,11 +12,11 @@ declare global {
   }
 }
 
-// Hardcoded plan IDs (from your PayPal setup)
+// LIVE PayPal Plan IDs
 const PAYPAL_PLANS = {
-  starter: "P-45N158797D214493ENKATHSY",
-  pro: "P-62M76978NH025890GNKATHTA",
-  enterprise: "P-8FS24293JU519284MNKATHTI",
+  starter: "P-9NA31790RW3719218NKAUWCA",
+  pro: "P-5WC69176PV346753YNKAUWCA",
+  enterprise: "P-496199786U953470XNKAUWCA",
 };
 
 const plans = [
@@ -92,7 +92,7 @@ function PricingContent() {
   const paypalRefs = useRef<(HTMLDivElement | null)[]>([]);
   const buttonsRendered = useRef<boolean[]>([false, false, false]);
 
-  const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "BAAImq2Jk4_ACYYGHWf6-CL1_151dWLTX7CRIWDnwjhqU_qbEDHWG2DZbpY_O3dzt75BTQMXNHjZeW6-E8";
+  const clientId = "AZDDsL_GQQSDtDCSiK0edVYaTJumzaFQBEr8maGMTBrpNgl17qo6eY6_0HQvpUvo5eZYkf5icicXgSps";
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -101,7 +101,6 @@ function PricingContent() {
       return;
     }
     if (document.getElementById("paypal-script")) {
-      // Script already loading, wait for it
       const checkPaypal = setInterval(() => {
         if (window.paypal) {
           setScriptLoaded(true);
@@ -116,7 +115,7 @@ function PricingContent() {
     script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&vault=true&intent=subscription&components=buttons`;
     script.async = true;
     script.onload = () => {
-      console.log("PayPal SDK loaded");
+      console.log("PayPal LIVE SDK loaded");
       setScriptLoaded(true);
     };
     script.onerror = () => {
@@ -136,7 +135,6 @@ function PricingContent() {
       const container = paypalRefs.current[index];
       if (!container) return;
 
-      // Clear previous content
       container.innerHTML = "";
 
       try {
@@ -162,7 +160,6 @@ function PricingContent() {
             onApprove: async (data: any) => {
               console.log("Subscription approved:", data);
               setLoadingPlan(null);
-              // Save to backend
               try {
                 await fetch("/api/paypal/save-subscription", {
                   method: "POST",
@@ -207,87 +204,45 @@ function PricingContent() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        {/* Header */}
         <div className="text-center mb-16">
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-4xl md:text-5xl font-bold text-white mb-4"
-          >
+          <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-4xl md:text-5xl font-bold text-white mb-4">
             Simple, Transparent Pricing
           </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-lg text-slate-400 max-w-2xl mx-auto"
-          >
+          <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-lg text-slate-400 max-w-2xl mx-auto">
             Choose the plan that fits your business. All plans include a 14-day free trial.
-            No credit card required to start.
           </motion.p>
         </div>
 
-        {/* Error Banner */}
         {scriptError && (
           <div className="mb-8 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3 max-w-2xl mx-auto">
             <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-            <span className="text-red-400 text-sm">
-              PayPal payment system is temporarily unavailable. Please refresh the page or try again later.
-            </span>
+            <span className="text-red-400 text-sm">PayPal payment system is temporarily unavailable. Please refresh the page.</span>
           </div>
         )}
 
-        {/* Pricing Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {plans.map((plan, index) => {
             const Icon = plan.icon;
             const isEnterprise = plan.name === "Enterprise";
-
             return (
-              <motion.div
-                key={plan.name}
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.15 }}
-                className={`relative rounded-2xl border p-8 flex flex-col ${
-                  plan.popular
-                    ? "border-emerald-500/50 bg-slate-900/80 shadow-lg shadow-emerald-500/10"
-                    : "border-slate-800 bg-slate-900/50"
-                }`}
-              >
+              <motion.div key={plan.name} initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.15 }}
+                className={`relative rounded-2xl border p-8 flex flex-col ${plan.popular ? "border-emerald-500/50 bg-slate-900/80 shadow-lg shadow-emerald-500/10" : "border-slate-800 bg-slate-900/50"}`}>
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <span className="bg-emerald-500 text-slate-950 text-xs font-bold px-4 py-1.5 rounded-full">
-                      MOST POPULAR
-                    </span>
+                    <span className="bg-emerald-500 text-slate-950 text-xs font-bold px-4 py-1.5 rounded-full">MOST POPULAR</span>
                   </div>
                 )}
-
                 <div className="mb-6">
-                  <div
-                    className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${
-                      plan.popular ? "bg-emerald-500/20" : "bg-slate-800"
-                    }`}
-                  >
-                    <Icon
-                      className={`w-6 h-6 ${
-                        plan.popular ? "text-emerald-400" : "text-slate-400"
-                      }`}
-                    />
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${plan.popular ? "bg-emerald-500/20" : "bg-slate-800"}`}>
+                    <Icon className={`w-6 h-6 ${plan.popular ? "text-emerald-400" : "text-slate-400"}`} />
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-1">
-                    {plan.name}
-                  </h3>
+                  <h3 className="text-xl font-bold text-white mb-1">{plan.name}</h3>
                   <p className="text-sm text-slate-400">{plan.description}</p>
                 </div>
-
                 <div className="mb-6">
-                  <span className="text-4xl font-bold text-white">
-                    {plan.price}
-                  </span>
+                  <span className="text-4xl font-bold text-white">{plan.price}</span>
                   <span className="text-slate-400">{plan.period}</span>
                 </div>
-
                 <ul className="space-y-3 mb-8 flex-1">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-3">
@@ -296,27 +251,18 @@ function PricingContent() {
                     </li>
                   ))}
                 </ul>
-
                 {isEnterprise ? (
-                  <button
-                    onClick={handleEnterprise}
-                    className="w-full py-3 px-4 rounded-xl border border-slate-700 text-white font-medium hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"
-                  >
-                    {plan.cta}
-                    <ArrowRight className="w-4 h-4" />
+                  <button onClick={handleEnterprise} className="w-full py-3 px-4 rounded-xl border border-slate-700 text-white font-medium hover:bg-slate-800 transition-colors flex items-center justify-center gap-2">
+                    {plan.cta}<ArrowRight className="w-4 h-4" />
                   </button>
                 ) : (
                   <div className="space-y-3">
                     {loadingPlan === plan.name ? (
                       <div className="w-full py-3 px-4 rounded-xl bg-slate-800 flex items-center justify-center gap-2 text-slate-400">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Processing...
+                        <Loader2 className="w-4 h-4 animate-spin" />Processing...
                       </div>
                     ) : (
-                      <div
-                        ref={(el) => { paypalRefs.current[index] = el; }}
-                        className="w-full min-h-[40px]"
-                      />
+                      <div ref={(el) => { paypalRefs.current[index] = el; }} className="w-full min-h-[40px]" />
                     )}
                     {!scriptLoaded && !scriptError && !isEnterprise && (
                       <div className="w-full py-3 px-4 rounded-xl bg-slate-800 text-center">
@@ -325,12 +271,7 @@ function PricingContent() {
                       </div>
                     )}
                     {scriptError && !isEnterprise && (
-                      <button
-                        onClick={() => window.location.reload()}
-                        className="w-full py-3 px-4 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition-colors text-sm"
-                      >
-                        Retry PayPal
-                      </button>
+                      <button onClick={() => window.location.reload()} className="w-full py-3 px-4 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition-colors text-sm">Retry PayPal</button>
                     )}
                   </div>
                 )}
@@ -339,35 +280,12 @@ function PricingContent() {
           })}
         </div>
 
-        {/* Trust badges */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="mt-16 text-center"
-        >
-          <p className="text-slate-500 text-sm mb-4">
-            Trusted by 500+ government contractors nationwide
-          </p>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} className="mt-16 text-center">
+          <p className="text-slate-500 text-sm mb-4">Trusted by 500+ government contractors nationwide</p>
           <div className="flex items-center justify-center gap-8 text-slate-600">
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-              <span className="text-sm">SSL Secured</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
-              </svg>
-              <span className="text-sm">SOC 2 Compliant</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
-              </svg>
-              <span className="text-sm">Cancel Anytime</span>
-            </div>
+            <div className="flex items-center gap-2"><svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span className="text-sm">SSL Secured</span></div>
+            <div className="flex items-center gap-2"><svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg><span className="text-sm">SOC 2 Compliant</span></div>
+            <div className="flex items-center gap-2"><svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg><span className="text-sm">Cancel Anytime</span></div>
           </div>
         </motion.div>
       </div>
@@ -377,11 +295,7 @@ function PricingContent() {
 
 export default function PricingPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
-      </div>
-    }>
+    <Suspense fallback={<div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center"><Loader2 className="w-8 h-8 text-emerald-400 animate-spin" /></div>}>
       <PricingContent />
     </Suspense>
   );
