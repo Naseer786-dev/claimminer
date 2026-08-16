@@ -1,25 +1,24 @@
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
 
+import { sql } from "@vercel/postgres"
 import { NextResponse } from "next/server"
-import { db } from "@/lib/db"
-import { rfps, alerts, trackedRfps } from "@/lib/schema"
-import { sql } from "drizzle-orm"
 
 export async function GET() {
   try {
-    const totalRfps = await db.select({ count: sql<number>`count(*)` }).from(rfps)
-    const totalAlerts = await db.select({ count: sql<number>`count(*)` }).from(alerts)
-    const totalTracked = await db.select({ count: sql<number>`count(*)` }).from(trackedRfps)
+    const rfpsCount = await sql`SELECT COUNT(*) as count FROM rfps`
+    const alertsCount = await sql`SELECT COUNT(*) as count FROM alerts`
+    const trackedCount = await sql`SELECT COUNT(*) as count FROM tracked_rfps`
 
     return NextResponse.json({
-      totalRfps: totalRfps[0]?.count || 0,
-      totalAlerts: totalAlerts[0]?.count || 0,
-      totalTracked: totalTracked[0]?.count || 0,
+      totalRfps: parseInt(rfpsCount.rows[0]?.count || "0"),
+      totalAlerts: parseInt(alertsCount.rows[0]?.count || "0"),
+      totalTracked: parseInt(trackedCount.rows[0]?.count || "0"),
       trackedValue: "$12.5M",
       avgMatch: "87%",
     })
-  } catch (error) {
+  } catch (error: any) {
+    console.error("Stats error:", error.message)
     return NextResponse.json({
       totalRfps: 0, totalAlerts: 0, totalTracked: 0,
       trackedValue: "$0", avgMatch: "0%",
