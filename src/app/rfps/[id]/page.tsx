@@ -56,11 +56,11 @@ export default function RfpDetailPage() {
             <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{rfp.title}</h1>
             <p className="text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-2">
               <Building2 className="h-4 w-4" />
-              {rfp.agency} · {rfp.agencyLevel}
+              {rfp.agency} · {rfp.agency_level}
             </p>
           </div>
           <span className="px-3 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-300 text-sm font-bold">
-            {Math.round(rfp.matchScore || 0)}% match
+            {Math.round(rfp.match_score || 0)}% match
           </span>
         </div>
 
@@ -76,7 +76,7 @@ export default function RfpDetailPage() {
             <Calendar className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mb-2" />
             <p className="text-sm text-slate-500 dark:text-slate-400">Due Date</p>
             <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-              {rfp.dueDate ? new Date(rfp.dueDate).toLocaleDateString() : "TBD"}
+              {rfp.due_date ? new Date(rfp.due_date).toLocaleDateString() : "TBD"}
             </p>
           </motion.div>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}

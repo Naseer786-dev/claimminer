@@ -31,7 +31,7 @@ export default function RfpsPage() {
   const filtered = (rfps || []).filter((rfp) => {
     if (!rfp) return false
     const matchesSearch = !search || (rfp.title && rfp.title.toLowerCase().includes(search.toLowerCase()))
-    const matchesFilter = filter === "all" || rfp.agencyLevel === filter
+    const matchesFilter = filter === "all" || rfp.agency_level === filter
     return matchesSearch && matchesFilter
   })
 
@@ -96,24 +96,24 @@ export default function RfpsPage() {
                         <h3 className="text-lg font-semibold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                           {rfp.title || "Untitled"}
                         </h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{rfp.agency || ""} · {rfp.state || rfp.agencyLevel || ""}</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{rfp.agency || ""} · {rfp.state || rfp.agency_level || ""}</p>
                         <p className="text-sm text-slate-600 dark:text-slate-300 mt-2 line-clamp-2">{rfp.description || ""}</p>
                         <div className="flex flex-wrap gap-2 mt-3">
                           <span className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 text-xs font-medium">
-                            {rfp.agencyLevel || "Unknown"}
+                            {rfp.agency_level || "Unknown"}
                           </span>
                           <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-medium">
                             NAICS: {rfp.naics || "N/A"}
                           </span>
                           <span className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400 text-xs font-medium">
-                            Due: {rfp.dueDate ? new Date(rfp.dueDate).toLocaleDateString() : "TBD"}
+                            Due: {rfp.due_date ? new Date(rfp.due_date).toLocaleDateString() : "TBD"}
                           </span>
                         </div>
                       </div>
                       <div className="ml-6 text-right shrink-0">
                         <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{rfp.value || "N/A"}</p>
                         <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-300 text-xs font-bold mt-2">
-                          {Math.round(rfp.matchScore || 0)}% match
+                          {Math.round(rfp.match_score || 0)}% match
                         </span>
                       </div>
                     </div>

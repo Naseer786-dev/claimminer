@@ -73,12 +73,12 @@ export default function DashboardPage() {
                 <Link href={`/rfps/${rfp.id}`} className="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-medium text-slate-900 dark:text-white truncate">{rfp.title || "Untitled"}</h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{rfp.agency || ""} · {rfp.agencyLevel || ""}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{rfp.agency || ""} · {rfp.agency_level || ""}</p>
                   </div>
                   <div className="flex items-center gap-4 ml-4">
                     <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{rfp.value || "N/A"}</span>
                     <span className="text-xs px-2 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 font-medium">
-                      {Math.round(rfp.matchScore || 0)}% match
+                      {Math.round(rfp.match_score || 0)}% match
                     </span>
                   </div>
                 </Link>
