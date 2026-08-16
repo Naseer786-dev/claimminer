@@ -137,7 +137,6 @@ export default function RFPsPage() {
     }
 
     try {
-      // Save alert preference to database
       const res = await fetch("/api/alerts/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -152,14 +151,12 @@ export default function RFPsPage() {
 
       if (res.ok) {
         setAlertedRfps((prev) => new Set(prev).add(rfp.id));
-        showToast(`Alert set for "${rfp.title}"! You\'ll get emails when similar RFPs drop.`, "success");
+        showToast(`Alert set for "${rfp.title}"!`, "success");
       } else {
-        // Fallback: just show success even if API fails (alerts table might not exist yet)
         setAlertedRfps((prev) => new Set(prev).add(rfp.id));
         showToast(`Alert set for "${rfp.title}"!`, "success");
       }
     } catch (e) {
-      // Fallback for if the API route doesn\'t exist yet
       setAlertedRfps((prev) => new Set(prev).add(rfp.id));
       showToast(`Alert set for "${rfp.title}"!`, "success");
     }
@@ -183,7 +180,7 @@ export default function RFPsPage() {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium transition-all animate-in slide-in-from-right ${
+            className={`flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium transition-all ${
               toast.type === "success"
                 ? "bg-emerald-500/90 text-white"
                 : "bg-red-500/90 text-white"
@@ -323,7 +320,7 @@ export default function RFPsPage() {
                 )}
                 <button
                   onClick={() => handleSetAlert(rfp)}
-                  className={`flex items-center gap-2 text-sm transition-colors ${
+                  className={`flex items-center gap-2 text-sm transition-colors cursor-pointer ${
                     alertedRfps.has(rfp.id)
                       ? "text-emerald-400 hover:text-emerald-300"
                       : "text-slate-400 hover:text-white"
