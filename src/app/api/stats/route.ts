@@ -1,4 +1,5 @@
 export const dynamic = "force-dynamic"
+export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
@@ -20,11 +21,8 @@ export async function GET() {
     })
   } catch (error) {
     return NextResponse.json({
-      totalRfps: 0,
-      totalAlerts: 0,
-      totalTracked: 0,
-      trackedValue: "$0",
-      avgMatch: "0%",
+      totalRfps: 0, totalAlerts: 0, totalTracked: 0,
+      trackedValue: "$0", avgMatch: "0%",
     })
   }
 }

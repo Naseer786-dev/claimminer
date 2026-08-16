@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Search, Filter, SlidersHorizontal } from "lucide-react"
+import { Search } from "lucide-react"
 import Link from "next/link"
 import { RfpCardSkeleton } from "@/components/loading-skeleton"
 
@@ -17,9 +17,10 @@ export default function RfpsPage() {
       try {
         const res = await fetch("/api/rfps")
         const data = await res.json()
-        setRfps(data)
+        setRfps(Array.isArray(data) ? data : [])
       } catch (e) {
         console.error(e)
+        setRfps([])
       } finally {
         setLoading(false)
       }
@@ -27,8 +28,9 @@ export default function RfpsPage() {
     fetchData()
   }, [])
 
-  const filtered = rfps.filter((rfp) => {
-    const matchesSearch = !search || rfp.title.toLowerCase().includes(search.toLowerCase())
+  const filtered = (rfps || []).filter((rfp) => {
+    if (!rfp) return false
+    const matchesSearch = !search || (rfp.title && rfp.title.toLowerCase().includes(search.toLowerCase()))
     const matchesFilter = filter === "all" || rfp.agencyLevel === filter
     return matchesSearch && matchesFilter
   })
@@ -72,12 +74,16 @@ export default function RfpsPage() {
         <div className="space-y-4">
           {[1, 2, 3, 4].map((i) => <RfpCardSkeleton key={i} />)}
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-slate-500 dark:text-slate-400">No RFPs found</p>
+        </div>
       ) : (
         <div className="space-y-4">
           <AnimatePresence>
             {filtered.map((rfp, i) => (
               <motion.div
-                key={rfp.id}
+                key={rfp.id || i}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
@@ -88,24 +94,24 @@ export default function RfpsPage() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
                         <h3 className="text-lg font-semibold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                          {rfp.title}
+                          {rfp.title || "Untitled"}
                         </h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{rfp.agency} · {rfp.state || "Federal"}</p>
-                        <p className="text-sm text-slate-600 dark:text-slate-300 mt-2 line-clamp-2">{rfp.description}</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{rfp.agency || ""} · {rfp.state || rfp.agencyLevel || ""}</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-300 mt-2 line-clamp-2">{rfp.description || ""}</p>
                         <div className="flex flex-wrap gap-2 mt-3">
                           <span className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 text-xs font-medium">
-                            {rfp.agencyLevel}
+                            {rfp.agencyLevel || "Unknown"}
                           </span>
                           <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-medium">
-                            NAICS: {rfp.naics}
+                            NAICS: {rfp.naics || "N/A"}
                           </span>
                           <span className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400 text-xs font-medium">
                             Due: {rfp.dueDate ? new Date(rfp.dueDate).toLocaleDateString() : "TBD"}
                           </span>
                         </div>
                       </div>
-                      <div className="ml-6 text-right">
-                        <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{rfp.value}</p>
+                      <div className="ml-6 text-right shrink-0">
+                        <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{rfp.value || "N/A"}</p>
                         <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-300 text-xs font-bold mt-2">
                           {Math.round(rfp.matchScore || 0)}% match
                         </span>
