@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { motion } from "framer-motion";
@@ -24,16 +24,16 @@ interface Subscription {
 }
 
 const planConfig: Record<string, { name: string; icon: any; color: string; price: string }> = {
-  free: { name: "Free", icon: Zap, color: "text-slate-400", price: "$0" },
+  free: { name: "Free Plan", icon: Zap, color: "text-slate-400", price: "$0" },
   starter: { name: "Starter", icon: Zap, color: "text-emerald-400", price: "$49/mo" },
   pro: { name: "Professional", icon: Crown, color: "text-blue-400", price: "$99/mo" },
   enterprise: { name: "Enterprise", icon: Building2, color: "text-purple-400", price: "$249/mo" },
 };
 
-export default function BillingPage() {
+function BillingContent() {
   const { user, isLoaded } = useUser();
   const searchParams = useSearchParams();
-  const success = searchParams.get("success");
+  const success = searchParams?.get("success");
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
@@ -41,6 +41,8 @@ export default function BillingPage() {
   useEffect(() => {
     if (isLoaded && user) {
       fetchSubscription();
+    } else if (isLoaded && !user) {
+      setLoading(false);
     }
   }, [isLoaded, user]);
 
@@ -50,7 +52,7 @@ export default function BillingPage() {
       const data = await res.json();
       setSubscription(data);
     } catch (error) {
-      console.error("Failed to fetch subscription:", error);
+      console.error("Subscription fetch error:", error);
     } finally {
       setLoading(false);
     }
@@ -78,6 +80,15 @@ export default function BillingPage() {
   const currentPlan = planConfig[subscription?.plan || "free"];
   const PlanIcon = currentPlan?.icon || Zap;
   const isActive = subscription?.status === "active";
+  const isFree = subscription?.plan === "free" || !subscription;
+
+  if (!isLoaded || loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -102,17 +113,17 @@ export default function BillingPage() {
             <div>
               <p className="text-sm text-slate-400 mb-1">Current Plan</p>
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg bg-slate-800`}>
+                <div className="p-2 rounded-lg bg-slate-800">
                   <PlanIcon className={`w-5 h-5 ${currentPlan?.color || "text-slate-400"}`} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-white">{currentPlan?.name || "Free"}</h2>
+                  <h2 className="text-xl font-bold text-white">{currentPlan?.name || "Free Plan"}</h2>
                   <p className="text-sm text-slate-400">{currentPlan?.price || "$0"}</p>
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {isActive && subscription?.plan !== "free" ? (
+              {isActive && !isFree ? (
                 <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 text-sm rounded-full flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   Active
@@ -120,13 +131,13 @@ export default function BillingPage() {
               ) : (
                 <span className="px-3 py-1 bg-slate-700 text-slate-400 text-sm rounded-full flex items-center gap-1">
                   <AlertCircle className="w-3.5 h-3.5" />
-                  {subscription?.status || "Free"}
+                  {isFree ? "Free" : subscription?.status}
                 </span>
               )}
             </div>
           </div>
 
-          {subscription?.current_period_end && subscription?.plan !== "free" && (
+          {subscription?.current_period_end && !isFree && (
             <div className="flex items-center gap-2 text-sm text-slate-400 mb-4">
               <Calendar className="w-4 h-4" />
               Next billing date: {new Date(subscription.current_period_end).toLocaleDateString("en-US", {
@@ -137,8 +148,8 @@ export default function BillingPage() {
             </div>
           )}
 
-          <div className="flex gap-3">
-            {subscription?.plan === "free" ? (
+          <div className="flex gap-3 flex-wrap">
+            {isFree ? (
               <button
                 onClick={() => window.location.href = "/pricing"}
                 className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-medium rounded-lg transition-colors flex items-center gap-2"
@@ -196,7 +207,7 @@ export default function BillingPage() {
         {/* Billing History */}
         <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
           <h3 className="text-lg font-semibold text-white mb-4">Billing History</h3>
-          {subscription?.plan === "free" ? (
+          {isFree ? (
             <p className="text-sm text-slate-400">No billing history yet. Upgrade to a paid plan to see your invoices here.</p>
           ) : (
             <div className="space-y-3">
@@ -214,5 +225,17 @@ export default function BillingPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function BillingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+      </div>
+    }>
+      <BillingContent />
+    </Suspense>
   );
 }
