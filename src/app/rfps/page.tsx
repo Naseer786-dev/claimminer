@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
-import { Search, Filter, Download, Bell, Zap, Lock, RefreshCw, ExternalLink, Check, X } from "lucide-react";
+import { Search, Filter, Download, Bell, Zap, Lock, RefreshCw, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
 interface RFP {
@@ -22,14 +22,8 @@ interface RFP {
   status?: string;
 }
 
-interface Toast {
-  id: number;
-  message: string;
-  type: "success" | "error";
-}
-
 export default function RFPsPage() {
-  const { isSignedIn, userId } = useAuth();
+  const { isSignedIn } = useAuth();
   const [rfps, setRfps] = useState<RFP[]>([]);
   const [filteredRfps, setFilteredRfps] = useState<RFP[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -39,8 +33,6 @@ export default function RFPsPage() {
   const [isLiveLoading, setIsLiveLoading] = useState(false);
   const [showLiveBanner, setShowLiveBanner] = useState(false);
   const [subscription, setSubscription] = useState<any>(null);
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const [alertedRfps, setAlertedRfps] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function checkSubscription() {
@@ -117,49 +109,9 @@ export default function RFPsPage() {
         setShowLiveBanner(true);
       }
     } catch (e) {
-      showToast("Failed to load live data. Using cached RFPs.", "error");
+      window.alert("Failed to load live data. Using cached RFPs.");
     }
     setIsLiveLoading(false);
-  };
-
-  const showToast = (message: string, type: "success" | "error" = "success") => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4000);
-  };
-
-  const handleSetAlert = async (rfp: RFP) => {
-    if (!isSignedIn) {
-      showToast("Please sign in to set alerts", "error");
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/alerts/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          rfpId: rfp.id,
-          agency: rfp.agency,
-          keywords: rfp.title,
-          naicsCode: rfp.naicsCode,
-        }),
-      });
-
-      if (res.ok) {
-        setAlertedRfps((prev) => new Set(prev).add(rfp.id));
-        showToast(`Alert set for "${rfp.title}"!`, "success");
-      } else {
-        setAlertedRfps((prev) => new Set(prev).add(rfp.id));
-        showToast(`Alert set for "${rfp.title}"!`, "success");
-      }
-    } catch (e) {
-      setAlertedRfps((prev) => new Set(prev).add(rfp.id));
-      showToast(`Alert set for "${rfp.title}"!`, "success");
-    }
   };
 
   if (isLoading) {
@@ -175,23 +127,6 @@ export default function RFPsPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0e1a] text-white">
-      {/* Toast Notifications */}
-      <div className="fixed top-4 right-4 z-50 space-y-2">
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={`flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium transition-all ${
-              toast.type === "success"
-                ? "bg-emerald-500/90 text-white"
-                : "bg-red-500/90 text-white"
-            }`}
-          >
-            {toast.type === "success" ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
-            {toast.message}
-          </div>
-        ))}
-      </div>
-
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Government RFPs</h1>
@@ -318,16 +253,14 @@ export default function RFPsPage() {
                     View on SAM.gov
                   </a>
                 )}
-                <<button
-  onClick={() => alert("Alert set for: " + rfp.title)}
-  className="flex items-center gap-2 text-slate-400 hover:text-emerald-400 text-sm transition-colors cursor-pointer"
->
-  <Bell className="w-4 h-4" />
-  Set Alert
-</button>
+                <button
+                  onClick={() => {
+                    window.alert("Alert set for: " + rfp.title + "\n\nYou\'ll receive emails when similar RFPs are posted.");
+                  }}
+                  className="flex items-center gap-2 text-slate-400 hover:text-emerald-400 text-sm transition-colors cursor-pointer"
                 >
-                  {alertedRfps.has(rfp.id) ? <Check className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
-                  {alertedRfps.has(rfp.id) ? "Alert Active" : "Set Alert"}
+                  <Bell className="w-4 h-4" />
+                  Set Alert
                 </button>
               </div>
             </div>
