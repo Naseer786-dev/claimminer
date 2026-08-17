@@ -318,13 +318,13 @@ export default function RFPsPage() {
                     View on SAM.gov
                   </a>
                 )}
-                <button
-                  onClick={() => handleSetAlert(rfp)}
-                  className={`flex items-center gap-2 text-sm transition-colors cursor-pointer ${
-                    alertedRfps.has(rfp.id)
-                      ? "text-emerald-400 hover:text-emerald-300"
-                      : "text-slate-400 hover:text-white"
-                  }`}
+                <<button
+  onClick={() => alert("Alert set for: " + rfp.title)}
+  className="flex items-center gap-2 text-slate-400 hover:text-emerald-400 text-sm transition-colors cursor-pointer"
+>
+  <Bell className="w-4 h-4" />
+  Set Alert
+</button>
                 >
                   {alertedRfps.has(rfp.id) ? <Check className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
                   {alertedRfps.has(rfp.id) ? "Alert Active" : "Set Alert"}
