@@ -13,8 +13,13 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
 
-    if (!userId) {
-      return NextResponse.json({ plan: "free", status: "active" });
+    if (!userId || userId === "undefined" || userId === "null") {
+      return NextResponse.json({
+        plan: "free",
+        status: "active",
+        current_period_end: null,
+        paypal_subscription_id: null,
+      });
     }
 
     const result = await pool.query(
@@ -27,11 +32,22 @@ export async function GET(req: NextRequest) {
     );
 
     if (result.rows.length === 0) {
-      return NextResponse.json({ plan: "free", status: "active" });
+      return NextResponse.json({
+        plan: "free",
+        status: "active",
+        current_period_end: null,
+        paypal_subscription_id: null,
+      });
     }
 
     return NextResponse.json(result.rows[0]);
   } catch (error) {
-    return NextResponse.json({ plan: "free", status: "active" });
+    console.error("Subscription status error:", error);
+    return NextResponse.json({
+      plan: "free",
+      status: "active",
+      current_period_end: null,
+      paypal_subscription_id: null,
+    });
   }
 }

@@ -2,76 +2,114 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const SAM_API_KEY = process.env.SAM_API_KEY;
-const SAM_BASE_URL = "https://api.sam.gov/opportunities/v1/search";
-
 export async function GET(req: NextRequest) {
   try {
-    if (!SAM_API_KEY) {
-      return NextResponse.json(
-        { error: "SAM_API_KEY not configured. Get one free at sam.gov" },
-        { status: 500 }
-      );
-    }
-
+    const SAM_API_KEY = process.env.SAM_API_KEY;
     const { searchParams } = new URL(req.url);
     const keywords = searchParams.get("keywords") || "IT software";
-    const limit = searchParams.get("limit") || "10";
-    const offset = searchParams.get("offset") || "0";
+    const limit = parseInt(searchParams.get("limit") || "10");
 
-    const url = new URL(SAM_BASE_URL);
+    if (!SAM_API_KEY || SAM_API_KEY === "your_key") {
+      return NextResponse.json({
+        count: 3,
+        opportunities: [
+          {
+            id: "demo-1",
+            title: "IT Support Services - VA (Demo)",
+            agency: "Dept of Veterans Affairs",
+            description: "Comprehensive IT support services for VA facilities nationwide. Requires 5+ years experience.",
+            budget: "$2,400,000",
+            postedDate: new Date().toISOString(),
+            dueDate: "2026-09-30",
+            naicsCode: "541512",
+            contractType: "Small Business Set-Aside",
+            url: "https://sam.gov",
+            source: "SAM.gov",
+            matchScore: 94,
+          },
+          {
+            id: "demo-2",
+            title: "Cloud Infrastructure - USDA (Demo)",
+            agency: "US Dept of Agriculture",
+            description: "Cloud migration and infrastructure management for USDA systems.",
+            budget: "$1,800,000",
+            postedDate: new Date().toISOString(),
+            dueDate: "2026-10-15",
+            naicsCode: "541513",
+            contractType: "Open Competition",
+            url: "https://sam.gov",
+            source: "SAM.gov",
+            matchScore: 91,
+          },
+          {
+            id: "demo-3",
+            title: "Cybersecurity Audit - DHS (Demo)",
+            agency: "Homeland Security",
+            description: "Annual cybersecurity audit and compliance assessment.",
+            budget: "$3,200,000",
+            postedDate: new Date().toISOString(),
+            dueDate: "2026-11-01",
+            naicsCode: "541519",
+            contractType: "HUBZone Set-Aside",
+            url: "https://sam.gov",
+            source: "SAM.gov",
+            matchScore: 88,
+          },
+        ],
+        source: "SAM.gov (Demo Mode - Add SAM_API_KEY for live data)",
+        fetchedAt: new Date().toISOString(),
+      });
+    }
+
+    const url = new URL("https://api.sam.gov/opportunities/v1/search");
     url.searchParams.set("api_key", SAM_API_KEY);
     url.searchParams.set("q", keywords);
-    url.searchParams.set("limit", limit);
-    url.searchParams.set("offset", offset);
+    url.searchParams.set("limit", limit.toString());
     url.searchParams.set("sort", "-modifiedDate");
-    url.searchParams.set("isActive", "true");
 
-    const response = await fetch(url.toString(), {
-      headers: { Accept: "application/json" },
-    });
+    const response = await fetch(url.toString(), { next: { revalidate: 300 } });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      return NextResponse.json(
-        { error: "SAM.gov API error", details: errorText },
-        { status: response.status }
-      );
+      return NextResponse.json({
+        count: 0,
+        opportunities: [],
+        source: "SAM.gov",
+        message: `SAM.gov API error: ${response.status}`,
+        fetchedAt: new Date().toISOString(),
+      });
     }
 
     const data = await response.json();
 
     const opportunities = data.opportunitiesData?.map((opp: any) => ({
-      id: opp.noticeId || opp._id || Math.random().toString(36).substring(7),
-      title: opp.title || "Untitled Opportunity",
-      agency: opp.organizationHierarchy?.[0]?.name || opp.department || opp.agency || "Federal Agency",
+      id: opp.noticeId || Math.random().toString(36).substring(7),
+      title: opp.title || "Untitled",
+      agency: opp.organizationHierarchy?.[0]?.name || opp.department || "Federal Agency",
       description: opp.description?.slice(0, 500) || "No description available.",
-      budget: opp.estimatedValue 
-        ? `$${Number(opp.estimatedValue).toLocaleString()}` 
-        : "TBD",
-      postedDate: opp.publishDate || opp.postedDate || new Date().toISOString(),
-      dueDate: opp.responseDeadLine || opp.dueDate || "Open until filled",
-      naicsCode: opp.naicsCode?.[0]?.code || opp.naicsCodes?.[0] || "N/A",
-      contractType: opp.typeOfSetAsideDescription || opp.typeOfSetAside || "Open Competition",
-      solicitationNumber: opp.solicitationNumber || opp.noticeId || "N/A",
+      budget: opp.estimatedValue ? `$${Number(opp.estimatedValue).toLocaleString()}` : "TBD",
+      postedDate: opp.publishDate || new Date().toISOString(),
+      dueDate: opp.responseDeadLine || "Open until filled",
+      naicsCode: opp.naicsCode?.[0]?.code || "N/A",
+      contractType: opp.typeOfSetAsideDescription || "Open Competition",
       url: opp.uiLink || `https://sam.gov/opp/${opp.noticeId}/view`,
       source: "SAM.gov",
       matchScore: Math.floor(Math.random() * 15) + 80,
-      status: opp.active?.toLowerCase() === "yes" ? "Active" : "Inactive",
     })) || [];
 
     return NextResponse.json({
       count: opportunities.length,
-      totalCount: data.totalRecords || opportunities.length,
       opportunities,
       source: "SAM.gov Live API",
       fetchedAt: new Date().toISOString(),
     });
   } catch (error) {
     console.error("SAM.gov API error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch from SAM.gov", details: String(error) },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      count: 0,
+      opportunities: [],
+      source: "SAM.gov",
+      message: "Failed to fetch from SAM.gov",
+      fetchedAt: new Date().toISOString(),
+    });
   }
 }
