@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -65,6 +66,11 @@ const testimonials = [
 
 export default function LandingPage() {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -74,7 +80,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32 relative">
           <div className="text-center max-w-4xl mx-auto">
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={mounted ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }}
               animate={{ opacity: 1, y: 0 }}
               className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-400 text-sm mb-8"
             >
@@ -82,7 +88,7 @@ export default function LandingPage() {
               Trusted by 500+ government contractors
             </motion.div>
             <motion.h1
-              initial={{ opacity: 0, y: 20 }}
+              initial={mounted ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
               className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight"
@@ -91,7 +97,7 @@ export default function LandingPage() {
               <span className="text-emerald-400">Before Your Competition</span>
             </motion.h1>
             <motion.p
-              initial={{ opacity: 0, y: 20 }}
+              initial={mounted ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
               className="text-xl text-slate-400 mb-10 max-w-2xl mx-auto"
@@ -99,7 +105,7 @@ export default function LandingPage() {
               ClaimMiner scans thousands of government RFPs daily and delivers the ones that match your business — with AI-powered scoring, alerts, and deadline tracking.
             </motion.p>
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={mounted ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
               className="flex flex-col sm:flex-row gap-4 justify-center"
@@ -119,7 +125,7 @@ export default function LandingPage() {
               </button>
             </motion.div>
             <motion.p
-              initial={{ opacity: 0 }}
+              initial={mounted ? { opacity: 0 } : { opacity: 1 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5 }}
               className="mt-6 text-sm text-slate-500"
@@ -139,7 +145,7 @@ export default function LandingPage() {
               return (
                 <motion.div
                   key={stat.label}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={mounted ? { opacity: 0, y: 20 } : false}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
@@ -172,7 +178,7 @@ export default function LandingPage() {
               return (
                 <motion.div
                   key={feature.title}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={mounted ? { opacity: 0, y: 20 } : false}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
@@ -217,7 +223,7 @@ export default function LandingPage() {
             ].map((item, index) => (
               <motion.div
                 key={item.step}
-                initial={{ opacity: 0, y: 20 }}
+                initial={mounted ? { opacity: 0, y: 20 } : false}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.15 }}
@@ -244,7 +250,7 @@ export default function LandingPage() {
             {testimonials.map((t, index) => (
               <motion.div
                 key={index}
-                initial={{ opacity: 0, y: 20 }}
+                initial={mounted ? { opacity: 0, y: 20 } : false}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
@@ -275,7 +281,7 @@ export default function LandingPage() {
             Simple, Transparent Pricing
           </h2>
           <p className="text-slate-400 mb-8 max-w-2xl mx-auto">
-            Start free, upgrade when you\'re ready. No hidden fees, no surprises.
+            Start free, upgrade when you are ready. No hidden fees, no surprises.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto mb-10">
             {[
@@ -311,7 +317,7 @@ export default function LandingPage() {
       <section className="py-24">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={mounted ? { opacity: 0, y: 20 } : false}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             className="bg-gradient-to-r from-emerald-500/10 to-blue-500/10 border border-emerald-500/20 rounded-2xl p-12"
