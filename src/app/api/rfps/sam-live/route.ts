@@ -1,117 +1,122 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from 'next/server'
 
-export const dynamic = "force-dynamic";
+export async function GET() {
+  const apiKey = process.env.SAM_API_KEY
+  console.log("SAM Key exists:", !!apiKey, "Length:", apiKey?.length)
 
-export async function GET(req: NextRequest) {
+  // DEMO DATA (fallback)
+  const demoData = [
+    {
+      id: "1",
+      title: "IT Support Services - VA Hospital Upgrade",
+      agency: "Department of Veterans Affairs",
+      type: "IT Services",
+      posted: "2026-08-20",
+      deadline: "2026-09-15",
+      value: "$2,500,000",
+      match: 92,
+      description: "IT infrastructure support for VA hospital systems, cloud migration and helpdesk.",
+      url: "https://sam.gov"
+    },
+    {
+      id: "2",
+      title: "Cloud Migration & Infrastructure - USDA",
+      agency: "USDA",
+      type: "Cloud",
+      posted: "2026-08-19",
+      deadline: "2026-09-20",
+      value: "$8,700,000",
+      match: 88,
+      description: "Migrate USDA systems to AWS GovCloud, FedRAMP compliance required.",
+      url: "https://sam.gov"
+    },
+    {
+      id: "3",
+      title: "Cybersecurity Assessment - DOD",
+      agency: "Department of Defense",
+      type: "Cybersecurity",
+      posted: "2026-08-18",
+      deadline: "2026-09-10",
+      value: "$5,200,000",
+      match: 85,
+      description: "Security assessment and penetration testing for DOD facilities.",
+      url: "https://sam.gov"
+    }
+  ]
+
+  if (!apiKey || apiKey.includes("demo") || apiKey.length < 10) {
+    console.log("Using DEMO data - no valid key")
+    return NextResponse.json({ 
+      rfps: demoData, 
+      count: demoData.length,
+      source: "demo",
+      message: "Add real SAM_API_KEY for live data" 
+    })
+  }
+
   try {
-    const SAM_API_KEY = process.env.SAM_API_KEY;
-    const { searchParams } = new URL(req.url);
-    const keywords = searchParams.get("keywords") || "IT software";
-    const limit = parseInt(searchParams.get("limit") || "10");
+    // Real SAM.gov API - v2 search, last 30 days
+    const today = new Date()
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(today.getDate() - 30)
+    
+    const postedFrom = thirtyDaysAgo.toISOString().split('T')[0]
+    const postedTo = today.toISOString().split('T')[0]
 
-    // Demo mode: return sample data if no API key
-    if (!SAM_API_KEY || SAM_API_KEY === "your_key") {
-      return NextResponse.json({
-        count: 3,
-        opportunities: [
-          {
-            id: "demo-1",
-            title: "IT Support Services - VA (Demo)",
-            agency: "Dept of Veterans Affairs",
-            description: "Comprehensive IT support services for VA facilities nationwide. Requires 5+ years experience.",
-            budget: "$2,400,000",
-            postedDate: new Date().toISOString(),
-            dueDate: "2026-09-30",
-            naicsCode: "541512",
-            contractType: "Small Business Set-Aside",
-            url: "https://sam.gov",
-            source: "SAM.gov",
-            matchScore: 94,
-          },
-          {
-            id: "demo-2",
-            title: "Cloud Infrastructure - USDA (Demo)",
-            agency: "US Dept of Agriculture",
-            description: "Cloud migration and infrastructure management for USDA systems.",
-            budget: "$1,800,000",
-            postedDate: new Date().toISOString(),
-            dueDate: "2026-10-15",
-            naicsCode: "541513",
-            contractType: "Open Competition",
-            url: "https://sam.gov",
-            source: "SAM.gov",
-            matchScore: 91,
-          },
-          {
-            id: "demo-3",
-            title: "Cybersecurity Audit - DHS (Demo)",
-            agency: "Homeland Security",
-            description: "Annual cybersecurity audit and compliance assessment.",
-            budget: "$3,200,000",
-            postedDate: new Date().toISOString(),
-            dueDate: "2026-11-01",
-            naicsCode: "541519",
-            contractType: "HUBZone Set-Aside",
-            url: "https://sam.gov",
-            source: "SAM.gov",
-            matchScore: 88,
-          },
-        ],
-        source: "SAM.gov (Demo Mode - Add SAM_API_KEY for live data)",
-        fetchedAt: new Date().toISOString(),
-      });
+    const url = `https://api.sam.gov/opportunities/v2/search?api_key=${apiKey}&postedFrom=${postedFrom}&postedTo=${postedTo}&limit=10&ptype=o`
+
+    console.log("Calling SAM API:", url.replace(apiKey, "HIDDEN_KEY"))
+
+    const res = await fetch(url, { next: { revalidate: 0 } })
+    const text = await res.text()
+    
+    console.log("SAM Response status:", res.status)
+    
+    if (!res.ok) {
+      console.log("SAM API Error:", text.substring(0, 500))
+      // If API fails, return demo with error info
+      return NextResponse.json({ 
+        rfps: demoData, 
+        count: demoData.length,
+        source: "demo-fallback",
+        error: `SAM API ${res.status}: ${text.substring(0,200)}`
+      })
     }
 
-    // Live SAM.gov API call
-    const url = new URL("https://api.sam.gov/opportunities/v1/search");
-    url.searchParams.set("api_key", SAM_API_KEY);
-    url.searchParams.set("q", keywords);
-    url.searchParams.set("limit", limit.toString());
-    url.searchParams.set("sort", "-modifiedDate");
+    const data = JSON.parse(text)
+    const opps = data.opportunitiesData || []
 
-    const response = await fetch(url.toString(), { next: { revalidate: 300 } });
-
-    if (!response.ok) {
-      return NextResponse.json({
-        count: 0,
-        opportunities: [],
-        source: "SAM.gov",
-        message: `SAM.gov API error: ${response.status}`,
-        fetchedAt: new Date().toISOString(),
-      });
+    if (opps.length === 0) {
+      return NextResponse.json({ 
+        rfps: demoData, 
+        count: demoData.length,
+        source: "demo-no-results",
+        samResponse: data
+      })
     }
 
-    const data = await response.json();
+    const rfps = opps.slice(0, 10).map((opp: any, i: number) => ({
+      id: opp.noticeId || `${i}`,
+      title: opp.title || "Federal Opportunity",
+      agency: opp.fullParentPathName || opp.departmentName || "Federal Agency",
+      type: opp.typeOfSetAside || opp.naicsCodes?.[0] || "Contract",
+      posted: opp.postedDate?.split('T')[0] || postedFrom,
+      deadline: opp.responseDeadLine?.split('T')[0] || "2026-09-30",
+      value: opp.award?.amount ? `$${opp.award.amount}` : "$1M - $5M",
+      match: 80 + Math.floor(Math.random() * 15),
+      description: opp.description || opp.title,
+      url: opp.uiLink || `https://sam.gov/content/opportunities/${opp.noticeId}`
+    }))
 
-    const opportunities = data.opportunitiesData?.map((opp: any) => ({
-      id: opp.noticeId || Math.random().toString(36).substring(7),
-      title: opp.title || "Untitled",
-      agency: opp.organizationHierarchy?.[0]?.name || opp.department || "Federal Agency",
-      description: opp.description?.slice(0, 500) || "No description available.",
-      budget: opp.estimatedValue ? `$${Number(opp.estimatedValue).toLocaleString()}` : "TBD",
-      postedDate: opp.publishDate || new Date().toISOString(),
-      dueDate: opp.responseDeadLine || "Open until filled",
-      naicsCode: opp.naicsCode?.[0]?.code || "N/A",
-      contractType: opp.typeOfSetAsideDescription || "Open Competition",
-      url: opp.uiLink || `https://sam.gov/opp/${opp.noticeId}/view`,
-      source: "SAM.gov",
-      matchScore: Math.floor(Math.random() * 15) + 80,
-    })) || [];
+    return NextResponse.json({ rfps, count: rfps.length, source: "live-sam" })
 
-    return NextResponse.json({
-      count: opportunities.length,
-      opportunities,
-      source: "SAM.gov Live API",
-      fetchedAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error("SAM.gov API error:", error);
-    return NextResponse.json({
-      count: 0,
-      opportunities: [],
-      source: "SAM.gov",
-      message: "Failed to fetch from SAM.gov",
-      fetchedAt: new Date().toISOString(),
-    });
+  } catch (err: any) {
+    console.error("SAM Fetch Error:", err.message)
+    return NextResponse.json({ 
+      rfps: demoData, 
+      count: demoData.length,
+      source: "demo-error",
+      error: err.message 
+    })
   }
 }

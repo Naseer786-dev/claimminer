@@ -117,8 +117,8 @@ export default function RFPsPage() {
     try {
       const res = await fetch("/api/rfps/sam-live?limit=20&keywords=IT", { cache: "no-store" });
       const data = await res.json();
-      if (data.opportunities) {
-        setRfps(data.opportunities);
+      if (data.rfps) {
+        setRfps(data.rfps);
         setShowLiveBanner(true);
       }
     } catch (e) {
