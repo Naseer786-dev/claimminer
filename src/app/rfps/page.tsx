@@ -22,6 +22,19 @@ interface RFP {
   status?: string;
 }
 
+const formatDate = (dateStr: string | undefined): string => {
+  if (!dateStr) return "N/A";
+  try {
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return "N/A";
+  }
+};
+
 export default function RFPsPage() {
   const { isSignedIn } = useAuth();
   const [rfps, setRfps] = useState<RFP[]>([]);
@@ -138,7 +151,7 @@ export default function RFPsPage() {
             <div className="flex items-center gap-3">
               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
               <span className="text-emerald-400 text-sm font-medium">
-                Live data from SAM.gov &bull; Updated {new Date().toLocaleDateString()}
+                Live data from SAM.gov &bull; Updated {formatDate(new Date().toISOString())}
               </span>
             </div>
             <button
@@ -240,8 +253,10 @@ export default function RFPsPage() {
                   {rfp.agency}
                 </span>
                 <span>Budget: {rfp.budget}</span>
-                <span>Posted: {new Date(rfp.postedDate).toLocaleDateString()}</span>
-                <span>Due: {rfp.dueDate}</span>
+                {/* === DATE FIXES === */}
+                <span>Posted: {formatDate(rfp.postedDate)}</span>
+                <span>Due: {formatDate(rfp.dueDate)}</span>
+                {/* ================== */}
                 <span className="bg-slate-800 px-2 py-0.5 rounded text-xs">NAICS: {rfp.naicsCode}</span>
                 <span className="bg-slate-800 px-2 py-0.5 rounded text-xs">{rfp.contractType}</span>
               </div>
@@ -255,7 +270,7 @@ export default function RFPsPage() {
                 )}
                 <button
                   onClick={() => {
-                    window.alert("Alert set for: " + rfp.title + "\n\nYou\'ll receive emails when similar RFPs are posted.");
+                    window.alert("Alert set for: " + rfp.title + "\n\nYou will receive emails when similar RFPs are posted.");
                   }}
                   className="flex items-center gap-2 text-slate-400 hover:text-emerald-400 text-sm transition-colors cursor-pointer"
                 >
