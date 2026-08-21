@@ -154,7 +154,6 @@ export default function DashboardPage() {
     }
   }
 
-  // FIX: Safe number formatting to prevent $NaNK
   const formatTrackedValue = (val: number | undefined | null): string => {
     if (typeof val !== "number" || !isFinite(val) || val < 0) return "$0";
     if (val >= 1000000) return `$${(val / 1000000).toFixed(1)}M`;
@@ -162,11 +161,23 @@ export default function DashboardPage() {
     return `$${val}`;
   };
 
-  // FIX: Strip existing % to prevent 87%%
   const formatMatchScore = (val: number | string | undefined | null): string => {
     const cleaned = typeof val === "string" ? val.replace("%", "") : String(val ?? 0);
     const num = Number(cleaned);
     return `${isNaN(num) ? 0 : num}%`;
+  };
+
+  const formatDate = (dateStr: string | undefined): string => {
+    if (!dateStr) return "N/A";
+    try {
+      return new Date(dateStr).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    } catch {
+      return "N/A";
+    }
   };
 
   const displayStats = [
@@ -375,7 +386,7 @@ export default function DashboardPage() {
                         </span>
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
-                          Due: {rfp.due_date}
+                          Due: {formatDate(rfp.due_date)}
                         </span>
                       </div>
                     </div>
