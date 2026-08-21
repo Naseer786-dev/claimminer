@@ -386,7 +386,9 @@ export default function DashboardPage() {
                         </span>
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
+                          {/* === DATE FORMATTING FIX === */}
                           Due: {formatDate(rfp.due_date)}
+                          {/* =========================== */}
                         </span>
                       </div>
                     </div>
