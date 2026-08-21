@@ -104,6 +104,11 @@ export default function DashboardPage() {
   });
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -149,6 +154,21 @@ export default function DashboardPage() {
     }
   }
 
+  // FIX: Safe number formatting to prevent $NaNK
+  const formatTrackedValue = (val: number | undefined | null): string => {
+    if (typeof val !== "number" || !isFinite(val) || val < 0) return "$0";
+    if (val >= 1000000) return `$${(val / 1000000).toFixed(1)}M`;
+    if (val >= 1000) return `$${(val / 1000).toFixed(0)}K`;
+    return `$${val}`;
+  };
+
+  // FIX: Strip existing % to prevent 87%%
+  const formatMatchScore = (val: number | string | undefined | null): string => {
+    const cleaned = typeof val === "string" ? val.replace("%", "") : String(val ?? 0);
+    const num = Number(cleaned);
+    return `${isNaN(num) ? 0 : num}%`;
+  };
+
   const displayStats = [
     {
       ...statCards[0],
@@ -160,14 +180,11 @@ export default function DashboardPage() {
     },
     {
       ...statCards[2],
-      value:
-        stats.totalValue >= 1000000
-          ? `$${(stats.totalValue / 1000000).toFixed(1)}M`
-          : `$${(stats.totalValue / 1000).toFixed(0)}K`,
+      value: formatTrackedValue(stats.totalValue),
     },
     {
       ...statCards[3],
-      value: `${stats.avgMatch || 0}%`,
+      value: formatMatchScore(stats.avgMatch),
     },
   ];
 
@@ -190,7 +207,7 @@ export default function DashboardPage() {
 
         {/* Subscription Status Banner */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={mounted ? { opacity: 0, y: 10 } : { opacity: 1, y: 0 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-6 bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex items-center justify-between"
         >
@@ -235,7 +252,7 @@ export default function DashboardPage() {
         {/* Upgrade CTA Banner */}
         {canUpgrade && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={mounted ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
             className="mb-8 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20 rounded-xl p-6 flex items-center justify-between"
@@ -250,7 +267,7 @@ export default function DashboardPage() {
                 </h3>
                 <p className="text-sm text-slate-400">
                   {isFree
-                    ? "You\'re on the Free plan. Upgrade to search unlimited RFPs, get more alerts, and access advanced features."
+                    ? "You are on the Free plan. Upgrade to search unlimited RFPs, get more alerts, and access advanced features."
                     : `Get more power with ${currentPlan?.nextPlan}. More alerts, team seats, and API access.`
                   }
                 </p>
@@ -273,7 +290,7 @@ export default function DashboardPage() {
             return (
               <motion.div
                 key={stat.title}
-                initial={{ opacity: 0, y: 20 }}
+                initial={mounted ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
                 onClick={() => router.push(stat.href)}
